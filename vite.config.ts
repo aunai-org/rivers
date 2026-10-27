@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from "vite";
 import { buildDataset } from "./data/build";
+import { buildAssets } from "./data/geo/assets";
 
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
 
@@ -16,6 +17,13 @@ function dataset(): Plugin {
         res.setHeader("content-type", "application/json; charset=utf-8");
         res.end(JSON.stringify(await buildDataset()));
       });
+      // The inflated map and the rivers (data/geo/assets.ts): built once, on first request.
+      for (const name of ["inflate", "rivers"] as const) {
+        server.middlewares.use(`/${name}.json`, async (_req, res) => {
+          res.setHeader("content-type", "application/json; charset=utf-8");
+          res.end(JSON.stringify((await buildAssets())[name]));
+        });
+      }
     },
     async generateBundle() {
       const data = await buildDataset();
@@ -23,6 +31,10 @@ function dataset(): Plugin {
       if (!data.hubs.length) this.error("buildDataset() returned no hubs; not building without data.");
       this.emitFile({ type: "asset", fileName: "data.json", source: JSON.stringify(data) });
       this.info(`data.json: ${data.hubs.length} hubs, ${data.items.length} items, ${data.nodes.length} nodes`);
+      const assets = await buildAssets();
+      this.emitFile({ type: "asset", fileName: "inflate.json", source: JSON.stringify(assets.inflate) });
+      this.emitFile({ type: "asset", fileName: "rivers.json", source: JSON.stringify(assets.rivers) });
+      this.info(`inflate.json: ${assets.inflate.countries.length} countries · rivers.json: ${assets.rivers.rivers.length} rivers`);
     },
   };
 }

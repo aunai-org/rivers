@@ -13,7 +13,7 @@ import type { Dataset, HubRow, ItemRow, LinkRow, NodeRow } from "../src/data";
  */
 
 /** Where each river reaches the sea (or its big confluence), as a map position. */
-const MOUTH: Record<string, [lat: number, lng: number]> = {
+export const MOUTH: Record<string, [lat: number, lng: number]> = {
   "Ob-Irtysh": [66.6, 72.5],
   Mackenzie: [69.3, -134.1],
   "Missouri-Mississippi": [29.1, -89.2],
@@ -46,7 +46,7 @@ const MOUTH: Record<string, [lat: number, lng: number]> = {
 };
 
 /** A point near the middle of each country, used only as its map position. */
-const CENTRE: Record<string, [lat: number, lng: number]> = {
+export const CENTRE: Record<string, [lat: number, lng: number]> = {
   Russia: [61.5, 105],
   Canada: [56, -106],
   "United States": [39.8, -98.6],
@@ -84,12 +84,12 @@ const CENTRE: Record<string, [lat: number, lng: number]> = {
   Luxembourg: [49.8, 6.1],
 };
 
-type Row = { country: string; area: number; river: string; km: number };
+export type Row = { country: string; area: number; river: string; km: number };
 
-const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const num = (n: number) => n.toLocaleString("en-US");
 
-function readRows(): Row[] {
+export function readRows(): Row[] {
   const lines = readFileSync(new URL("./rivers.csv", import.meta.url), "utf8").trim().split(/\r?\n/).slice(1);
   return lines.map((line) => {
     const [country, area, river, km] = line.split(",");

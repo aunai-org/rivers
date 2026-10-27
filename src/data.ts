@@ -59,6 +59,40 @@ export type Dataset = {
 /** Where the built dataset is served from. vite.config.ts writes it at build time and serves it in dev. */
 export const DATA_URL = "/data.json";
 
+/** [longitude, latitude] */
+export type LngLat = [number, number];
+
+/**
+ * The "inflated by river" map, built by data/geo/assets.ts. Every country's rings, real and inflated (same vertex
+ * count, so the globe can morph between them), plus where each pin moves to when the land is inflated.
+ */
+export type InflateAsset = {
+  /** `km` is the country's longest river, or null when the country is not in the table. */
+  countries: { name: string; km: number | null; real: LngLat[][]; inflated: LngLat[][] }[];
+  /** Inflated [lat, lng] of each pin, keyed `hub:<id>` or `node:<id>`. */
+  points: Record<string, [lat: number, lng: number]>;
+};
+
+/** River lines from Natural Earth, each running source → mouth, built by data/geo/assets.ts. */
+export type RiversAsset = {
+  rivers: {
+    name: string;
+    /** Main stem length, km. */
+    km: number;
+    /** Natural Earth scalerank: lower is bigger. */
+    rank: number;
+    /** The hub this river is, when it is one of the table's rivers. */
+    hub?: string;
+    /** [lat, lng] points near the mouth where today's discharge is sampled. */
+    gauges: [lat: number, lng: number][];
+    /** Flat [lng, lat, lng, lat, …] real and inflated positions, and km from the line's source at each point. */
+    lines: { real: number[]; inflated: number[]; dist: number[] }[];
+  }[];
+};
+
+export const INFLATE_URL = "/inflate.json";
+export const RIVERS_URL = "/rivers.json";
+
 function valid(value: unknown): value is Dataset {
   const d = value as Dataset | null;
   return !!d && Array.isArray(d.hubs) && Array.isArray(d.items) && Array.isArray(d.nodes) && Array.isArray(d.links);
