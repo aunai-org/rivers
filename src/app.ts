@@ -1,6 +1,8 @@
-import { Globe, type Arc, type Pin, type Tone } from "./globe";
+import { Globe, RADIUS, type Arc, type Pin, type Tone } from "./globe";
+import { RiverFlow } from "./flow";
+import { fetchDischarge } from "./discharge";
 import { config } from "./config";
-import { INFLATE_URL, fetchDataset, readSaved, save, type Dataset, type Fact, type HubRow, type InflateAsset, type ItemRow, type NodeRow } from "./data";
+import { INFLATE_URL, RIVERS_URL, type RiversAsset, fetchDataset, readSaved, save, type Dataset, type Fact, type HubRow, type InflateAsset, type ItemRow, type NodeRow } from "./data";
 import { BAND_LABELS, BANDS, bandColour } from "./inflate";
 import { LOGO_SVG } from "./logo";
 import { cueClear, cueCluster, cueLand, cueOpen, cuePing, cueSelect, cueTick, initSound, setSound, soundOn } from "./sound";
@@ -156,6 +158,9 @@ let revealFor: string | null = null;
 let inflated = false;
 /** The inflated outlines and pin positions, loaded the first time the view is turned on. */
 let shapes: InflateAsset | null = null;
+/** The river layer is on; its lines load the first time. */
+let flowing = false;
+let rivers: RiversAsset | null = null;
 
 type Category = "hub" | "item" | "node" | "pulse";
 const show: Record<Category, boolean> = { hub: true, item: true, node: false, pulse: config.dates.enabled };
@@ -272,7 +277,20 @@ const globe = new Globe($("#globe"), {
   },
 });
 globe.onArcLand = cueLand;
-if (import.meta.env.DEV) (window as unknown as { __globe: Globe }).__globe = globe;
+
+// The river layer: drawn over the globe, following the land's morph.
+const riverFlow = new RiverFlow(RADIUS, window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+globe.addLayer(riverFlow.mesh);
+globe.onFrame = (now, t) => riverFlow.update(now, t, globe.cameraDistance);
+const m3s = (q: number) => `${Math.round(q).toLocaleString("en-US")} m³/s`;
+globe.probe = (x, y, camera, width, height) => {
+  const hit = riverFlow.hit(x, y, camera, width, height, globe.inflation);
+  if (!hit) return null;
+  const today = hit.flow ? `${m3s(hit.flow.q)} on ${hit.flow.date}` : config.views.offline;
+  return `${hit.name}
+${hit.km.toLocaleString("en-US")} km · ${today}`;
+};
+if (import.meta.env.DEV) Object.assign(window as object, { __globe: globe, __flow: riverFlow });
 globe.onClusterOpen = cueCluster;
 
 function pickItem(item: ItemRow) {
@@ -500,7 +518,12 @@ function paintCard(hub: HubRow | null, item: ItemRow | null, itemNodes: NodeRow[
     setText("#card-name", hub.name);
     setText("#card-when", `${own.length} ${low(own.length === 1 ? K.item.one : K.item.many)}${fresh ? ` · ${fresh} in ${config.dates.recentDays} days` : ""}`);
     addFact(body, "Place", hub.place ?? "No pin");
-    if (own[0]) addFact(body, "Newest", own[0].name);
+    const line = rivers?.rivers.find((r) => r.hub === hub.id);
+    const flow = line ? riverFlow.flowOf(line.name) : undefined;
+    if (flow) {
+      addFact(body, "Flow today", m3s(flow.q));
+      addFact(body, "Flow source", "GloFAS model · Open-Meteo", "https://open-meteo.com/en/docs/flood-api");
+    }
     if (mapped.length) {
       addFact(body, K.node.many, summary, () => {
         revealFor = hub.id;
@@ -759,6 +782,51 @@ inflateEl.addEventListener("click", async () => {
   // Pins learn their inflated homes before the morph starts, so they slide with the land.
   render();
   globe.setInflation(inflated);
+});
+
+function paintFlow(state: string) {
+  flowEl.classList.toggle("on", flowing);
+  flowEl.setAttribute("aria-pressed", String(flowing));
+  setText("#state-flow", flowing ? state : "");
+}
+
+let flowState = "";
+flowEl.addEventListener("click", async () => {
+  cueTick();
+  flowing = !flowing;
+  if (flowing && !rivers) {
+    flowEl.setAttribute("aria-busy", "true");
+    paintFlow(config.views.loading);
+    try {
+      const res = await fetch(RIVERS_URL);
+      if (!res.ok) throw new Error(`rivers request failed: ${res.status}`);
+      rivers = (await res.json()) as RiversAsset;
+      riverFlow.setData(rivers);
+    } catch {
+      flowing = false;
+      flowEl.removeAttribute("aria-busy");
+      paintFlow("");
+      setText("#state-flow", config.views.offline);
+      return;
+    }
+    flowEl.removeAttribute("aria-busy");
+    // Live discharge loads behind the drawing; the rivers flow at a rank-based pace until it arrives.
+    flowState = config.views.loading;
+    fetchDischarge(rivers.rivers, `${config.id}:flow`, (part) => {
+      riverFlow.setFlows(part);
+      flowState = config.views.live;
+      paintFlow(flowState);
+    })
+      .then((flows) => {
+        riverFlow.setFlows(flows);
+        flowState = config.views.live;
+        render();
+      })
+      .catch(() => (flowState = config.views.offline))
+      .finally(() => paintFlow(flowState));
+  }
+  riverFlow.setVisible(flowing);
+  paintFlow(flowState);
 });
 
 filtersEl.addEventListener("toggle", capCard);

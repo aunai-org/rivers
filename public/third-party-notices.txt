@@ -1,6 +1,6 @@
-Third-party notices for earth-template
+Third-party notices for river-globe
 
-earth-template (MIT) bundles or redistributes the works below.
+river-globe (MIT) bundles or redistributes the works below.
 Each is used under its own licence, reproduced here as that licence requires.
 If you replace the sample data with data from a source that has its own licence, add its notice here too.
 
@@ -234,3 +234,14 @@ Source: https://www.naturalearthdata.com · License: public domain
 
 Map data from Natural Earth. Free vector and raster map data @ naturalearthdata.com.
 Natural Earth is in the public domain; this credit is given as a courtesy.
+The river lines (ne_50m_rivers_lake_centerlines) come from Natural Earth too.
+
+========================================================================
+Open-Meteo Flood API (GloFAS)
+Source: https://open-meteo.com/en/docs/flood-api · License: CC BY 4.0
+========================================================================
+
+River discharge, fetched live in the browser when the River flow view is on.
+Data from Open-Meteo.com (https://open-meteo.com), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
+The underlying model is GloFAS, the Global Flood Awareness System of the Copernicus Emergency Management Service.
+Values are modelled daily discharge, not gauge measurements.

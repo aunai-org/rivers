@@ -6,7 +6,7 @@ import { THEME, hex } from "./theme";
 import { EarthPainter } from "./inflate";
 import type { InflateAsset } from "./data";
 
-const RADIUS = 1.48;
+export const RADIUS = 1.48;
 const RING_OUTER = 0.05;
 const FLIGHT_MS = 700;
 /** Pins closer than this on screen merge into one cluster badge. */
@@ -192,6 +192,8 @@ export class Globe {
   private still = false;
   /** Called every drawn frame with the time and the morph, for layers drawn on top of the globe (rivers). */
   onFrame?: (now: number, t: number) => void;
+  /** Hover text for something drawn by a layer (a river), given a point in canvas pixels; markers win over it. */
+  probe?: (x: number, y: number, camera: THREE.Camera, width: number, height: number) => string | null;
 
   constructor(private root: HTMLElement, options: GlobeOptions) {
     this.onPick = options.onPick;
@@ -317,6 +319,15 @@ export class Globe {
       this.arcs.add(line);
     }
     this.arcKeys = next;
+  }
+
+  /** Add something drawn on or around the globe, such as the river layer. */
+  addLayer(object: THREE.Object3D) {
+    this.scene.add(object);
+  }
+
+  get cameraDistance(): number {
+    return this.camera.position.length();
   }
 
   /** Hand the painter the inflated outlines. Until then the globe shows the plain map and cannot inflate. */
@@ -620,8 +631,12 @@ export class Globe {
       return;
     }
     const hit = this.hitAt(this.hover[0], this.hover[1]);
-    const label = hit ? (hit.userData.label as string) : "";
+    let label = hit ? (hit.userData.label as string) : "";
     this.renderer.domElement.style.cursor = hit ? "pointer" : "";
+    if (!hit && this.probe) {
+      const box = this.renderer.domElement.getBoundingClientRect();
+      label = this.probe(this.hover[0] - box.left, this.hover[1] - box.top, this.camera, box.width, box.height) ?? "";
+    }
     if (!label) {
       this.tip.hidden = true;
       return;

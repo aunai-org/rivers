@@ -66,6 +66,14 @@ export const config = {
       { label: "Arcs", html: "An arc joins a river's mouth to the centre of a country it reaches. A shared river counts in full for each country it crosses." },
       { label: "Map", html: "Natural Earth country outlines, via world-atlas." },
       {
+        label: "Inflate",
+        html: "An area cartogram: each country in the table gets an area in proportion to its longest river; the rest shrink to 35%. Pins and rivers move with the land.",
+      },
+      {
+        label: "River flow",
+        html: `Natural Earth river lines (50m), each drawn from source to mouth. Width and pace follow today's discharge from the <a href="https://open-meteo.com/en/docs/flood-api" target="_blank" rel="noopener noreferrer">Open-Meteo Flood API</a> (GloFAS model, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>). These are modelled values, not gauge readings. Turning the view on is the only time the page contacts another site.`,
+      },
+      {
         label: "License",
         html: `© 2026 aunai-org. Code is <a href="https://opensource.org/license/mit" target="_blank" rel="noopener noreferrer">MIT</a> licensed. <a href="/third-party-notices.txt" target="_blank" rel="noopener noreferrer">Third-party notices</a>.`,
       },

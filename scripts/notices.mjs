@@ -36,7 +36,10 @@ for (const [name, use] of bundled) {
   parts.push(`${rule}\n${name} ${l.version}\nLicense: ${l.license} · Used for: ${use}\n${rule}\n\n${l.text}\n`);
 }
 parts.push(
-  `${rule}\nNatural Earth\nSource: https://www.naturalearthdata.com · License: public domain\n${rule}\n\nMap data from Natural Earth. Free vector and raster map data @ naturalearthdata.com.\nNatural Earth is in the public domain; this credit is given as a courtesy.\n`,
+  `${rule}\nNatural Earth\nSource: https://www.naturalearthdata.com · License: public domain\n${rule}\n\nMap data from Natural Earth. Free vector and raster map data @ naturalearthdata.com.\nNatural Earth is in the public domain; this credit is given as a courtesy.\nThe river lines (ne_50m_rivers_lake_centerlines) come from Natural Earth too.\n`,
+);
+parts.push(
+  `${rule}\nOpen-Meteo Flood API (GloFAS)\nSource: https://open-meteo.com/en/docs/flood-api · License: CC BY 4.0\n${rule}\n\nRiver discharge, fetched live in the browser when the River flow view is on.\nData from Open-Meteo.com (https://open-meteo.com), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).\nThe underlying model is GloFAS, the Global Flood Awareness System of the Copernicus Emergency Management Service.\nValues are modelled daily discharge, not gauge measurements.\n`,
 );
 writeFileSync("public/third-party-notices.txt", parts.join("\n"));
-console.log(`public/third-party-notices.txt: ${bundled.length} libraries + Natural Earth`);
+console.log(`public/third-party-notices.txt: ${bundled.length} libraries + Natural Earth + Open-Meteo`);
