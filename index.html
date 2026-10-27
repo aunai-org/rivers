@@ -52,6 +52,18 @@
           <button id="win-all" type="button" class="on" aria-pressed="true"><span>All</span><b id="count-all">0</b></button>
           <button id="recent" type="button" aria-pressed="false"><span id="recent-label"></span><b id="count-recent">0</b></button>
         </div>
+        <p class="group-label" id="lbl-view"></p>
+        <div class="legend views" role="group" aria-labelledby="lbl-view">
+          <button type="button" id="view-inflate" class="inflate" aria-pressed="false">
+            <svg class="mark" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.2c2.4 0 4 1.8 4 4 0 2.6-2.4 4.2-4 4.2S2 7.8 2 5.2c0-2.2 1.6-4 4-4Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M6 9.4 5.3 10.8h1.4Z" fill="currentColor"/></svg>
+            <span id="lbl-inflate"></span><b id="state-inflate"></b>
+          </button>
+          <button type="button" id="view-flow" class="flow" aria-pressed="false">
+            <svg class="mark" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 4c1.7-1.6 3.3 1.6 5 0s3.3 1.6 5 0M1 8c1.7-1.6 3.3 1.6 5 0s3.3 1.6 5 0" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            <span id="lbl-flow"></span><b id="state-flow"></b>
+          </button>
+        </div>
+        <div class="bands" id="bands" hidden></div>
         <p class="group-label">Show</p>
         <div class="legend" role="group" aria-label="Categories">
           <button type="button" data-cat="hub" class="on" aria-pressed="true">

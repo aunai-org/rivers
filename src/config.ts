@@ -76,6 +76,20 @@ export const config = {
   /** The credit in the footer. Leave `href` empty for plain text. */
   credit: { label: "Data", text: "approximate river lengths", href: "" },
 
+  /** The View toggles in the Filters panel: the inflated map, and the live river layer. */
+  views: {
+    label: "View",
+    inflate: "Inflate by river",
+    inflateTitle: "Resize every country by the length of its longest river instead of its land area",
+    bandsLabel: "Longest river",
+    flow: "River flow",
+    flowTitle: "Draw the world's major rivers flowing from source to mouth, sized by today's modelled discharge",
+    live: "live",
+    model: "model",
+    loading: "…",
+    offline: "no data",
+  },
+
   /** Status and notice wording. */
   copy: {
     loading: "Loading…",

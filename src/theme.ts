@@ -11,6 +11,10 @@ export const THEME = {
   dim: "#6b7178",
   /** Secondary markers (nodes) and the arcs that reach them. */
   node: "#9ecbff",
+  /** Rivers: the inflated-map colour bands and the flowing river layer. */
+  river: "#3b82f6",
+  /** The bright head of each pulse that runs down a river. */
+  flow: "#9ecbff",
   /** Fill behind every marker icon. */
   plate: "#101114",
   /** Font for the numbers on cluster badges. */

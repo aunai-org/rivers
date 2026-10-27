@@ -1,6 +1,7 @@
 import { Globe, type Arc, type Pin, type Tone } from "./globe";
 import { config } from "./config";
-import { fetchDataset, readSaved, save, type Dataset, type Fact, type HubRow, type ItemRow, type NodeRow } from "./data";
+import { INFLATE_URL, fetchDataset, readSaved, save, type Dataset, type Fact, type HubRow, type InflateAsset, type ItemRow, type NodeRow } from "./data";
+import { BAND_LABELS, BANDS, bandColour } from "./inflate";
 import { LOGO_SVG } from "./logo";
 import { cueClear, cueCluster, cueLand, cueOpen, cuePing, cueSelect, cueTick, initSound, setSound, soundOn } from "./sound";
 
@@ -30,6 +31,8 @@ const appEl = $("#app");
 const aboutEl = $("#about");
 const aboutBtn = $<HTMLButtonElement>("#about-btn");
 const soundEl = $<HTMLButtonElement>("#sound");
+const inflateEl = $<HTMLButtonElement>("#view-inflate");
+const flowEl = $<HTMLButtonElement>("#view-flow");
 
 function setText(selector: string, value: string) {
   const el = document.querySelector(selector);
@@ -64,6 +67,24 @@ function paintChrome() {
   setText("#key-node", K.node.one);
   setText("#key-arc", `${low(K.item.one)} ${config.link.item} ${low(K.node.one)}`);
   $("#cat-node").title = `Show every ${low(K.node.one)}, not just the ones tied to your selection`;
+
+  const V = config.views;
+  setText("#lbl-view", V.label);
+  setText("#lbl-inflate", V.inflate);
+  setText("#lbl-flow", V.flow);
+  inflateEl.title = V.inflateTitle;
+  flowEl.title = V.flowTitle;
+  const bands = $("#bands");
+  const head = document.createElement("span");
+  head.textContent = V.bandsLabel;
+  bands.append(head);
+  BAND_LABELS.forEach((label, i) => {
+    const row = document.createElement("span");
+    const swatch = document.createElement("i");
+    swatch.style.background = bandColour(i ? BANDS[i - 1] : 0);
+    row.append(swatch, label);
+    bands.append(row);
+  });
 
   setText("#about-title", config.name);
   setText("#about-blurb", config.about.blurb);
@@ -131,6 +152,10 @@ let updatedAt = "";
 let notice = "";
 /** Compact screens: a hub shows its nodes only after its card link asks for them. */
 let revealFor: string | null = null;
+/** The land is (or is turning) inflated by river. */
+let inflated = false;
+/** The inflated outlines and pin positions, loaded the first time the view is turned on. */
+let shapes: InflateAsset | null = null;
 
 type Category = "hub" | "item" | "node" | "pulse";
 const show: Record<Category, boolean> = { hub: true, item: true, node: false, pulse: config.dates.enabled };
@@ -192,6 +217,18 @@ function nodesServing(list: ItemRow[]): NodeRow[] {
   return [...ids].map((nodeKey) => nodeById.get(nodeKey)).filter((row): row is NodeRow => !!row);
 }
 
+/** Where a pin sits when the land is inflated, if the inflated map knows it. */
+function altOf(kind: "hub" | "node", id: string) {
+  const at = shapes?.points[`${kind}:${id}`];
+  return at ? { lat: at[0], lng: at[1] } : undefined;
+}
+
+/** Where to turn the camera for a pin: its inflated position while the land is inflated. */
+function aim(kind: "hub" | "node", row: HubRow | NodeRow | undefined) {
+  const place = row ? spot(row) : null;
+  return place && inflated ? (altOf(kind, row!.id) ?? place) : place;
+}
+
 const clock = (date: Date) => date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 // ---- The globe -----------------------------------------------------------------------------------------------------
@@ -208,7 +245,7 @@ const globe = new Globe($("#globe"), {
       hubId = id;
       itemId = null;
       nodeId = null;
-      const place = spot(hubById.get(id) ?? {});
+      const place = aim("hub", hubById.get(id));
       if (place) globe.focus(place.lat, place.lng);
       cueOpen();
     } else if (kind === "item") {
@@ -218,7 +255,7 @@ const globe = new Globe($("#globe"), {
     } else {
       nodeId = id;
       cuePing();
-      const place = spot(nodeById.get(id) ?? {});
+      const place = aim("node", nodeById.get(id));
       if (place) globe.focus(place.lat, place.lng);
     }
     render();
@@ -235,6 +272,7 @@ const globe = new Globe($("#globe"), {
   },
 });
 globe.onArcLand = cueLand;
+if (import.meta.env.DEV) (window as unknown as { __globe: Globe }).__globe = globe;
 globe.onClusterOpen = cueCluster;
 
 function pickItem(item: ItemRow) {
@@ -242,14 +280,14 @@ function pickItem(item: ItemRow) {
   hubId = item.hub;
   itemId = item.id;
   nodeId = null;
-  const place = spot(hubById.get(item.hub) ?? {});
+  const place = aim("hub", hubById.get(item.hub));
   if (place) globe.focus(place.lat, place.lng);
   render();
 }
 
 /** Turn and zoom the globe so a hub and its mapped nodes are all in view. */
 function frameNodes(hub: HubRow, mapped: NodeRow[]) {
-  const spots = [spot(hub), ...mapped.map((row) => spot(row))].filter((s): s is NonNullable<typeof s> => s !== null);
+  const spots = [aim("hub", hub), ...mapped.map((row) => aim("node", row))].filter((s): s is NonNullable<typeof s> => s !== null);
   globe.frame(spots);
 }
 
@@ -303,6 +341,7 @@ function render() {
       tone,
       lat: place.lat,
       lng: place.lng,
+      alt: altOf("hub", hub.id),
       ripple: show.pulse && (focus || (tone !== "dim" && hubItems(hub.id).some(recent))),
     });
   }
@@ -324,6 +363,7 @@ function render() {
       tone,
       lat: place.lat,
       lng: place.lng,
+      alt: altOf("node", row.id),
       ripple: show.pulse && tone === "focus",
     });
     if (openItem && relatedNodeIds.has(row.id)) {
@@ -346,6 +386,7 @@ function render() {
       tone,
       lat: hubHome!.lat,
       lng: hubHome!.lng,
+      alt: altOf("hub", item.hub),
       fan: { index, count: spawned.length, hub: item.hub },
       ripple: show.pulse && tone === "focus",
     });
@@ -677,6 +718,48 @@ soundEl.addEventListener("click", () => {
   paintSound();
 });
 paintSound();
+
+// ---- Views --------------------------------------------------------------------------------------------------------
+
+function paintViews() {
+  inflateEl.classList.toggle("on", inflated);
+  inflateEl.setAttribute("aria-pressed", String(inflated));
+  $("#bands").hidden = !inflated;
+}
+
+let shapesLoading: Promise<InflateAsset> | null = null;
+async function loadShapes(): Promise<InflateAsset> {
+  shapesLoading ??= fetch(INFLATE_URL).then((res) => {
+    if (!res.ok) throw new Error(`inflate request failed: ${res.status}`);
+    return res.json() as Promise<InflateAsset>;
+  });
+  return shapesLoading;
+}
+
+inflateEl.addEventListener("click", async () => {
+  cueTick();
+  const on = !inflated;
+  if (on && !shapes) {
+    inflateEl.setAttribute("aria-busy", "true");
+    setText("#state-inflate", config.views.loading);
+    try {
+      shapes = await loadShapes();
+      globe.setShapes(shapes);
+    } catch {
+      shapesLoading = null;
+      setText("#state-inflate", config.views.offline);
+      inflateEl.removeAttribute("aria-busy");
+      return;
+    }
+    inflateEl.removeAttribute("aria-busy");
+    setText("#state-inflate", "");
+  }
+  inflated = on;
+  paintViews();
+  // Pins learn their inflated homes before the morph starts, so they slide with the land.
+  render();
+  globe.setInflation(inflated);
+});
 
 filtersEl.addEventListener("toggle", capCard);
 window.addEventListener("resize", () => {

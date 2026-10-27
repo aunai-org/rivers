@@ -1,13 +1,10 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { feature } from "topojson-client";
-import { geoEquirectangular, geoPath } from "d3-geo";
-import type { FeatureCollection, Geometry } from "geojson";
-import world from "world-atlas/countries-110m.json";
 import { Space, rimGlow, type SpaceOptions } from "./space";
 import { badgeTexture, iconTexture, kindStyles, type Kind, type KindStyle, type KindStyles, type Tone } from "./icons";
 import { THEME, hex } from "./theme";
-import type { Topology } from "topojson-specification";
+import { EarthPainter } from "./inflate";
+import type { InflateAsset } from "./data";
 
 const RADIUS = 1.48;
 const RING_OUTER = 0.05;
@@ -21,6 +18,11 @@ const RING_MIN_PX = 26;
 const SLOT_PX = 19;
 /** Compact screens: below this width markers draw smaller. */
 const SMALL_PX = 700;
+/** Inflating overshoots like a balloon; deflating eases back. */
+const INFLATE_MS = 2400;
+const DEFLATE_MS = 900;
+const elastic = (u: number) => (u <= 0 ? 0 : u >= 1 ? 1 : Math.pow(2, -10 * u) * Math.sin(((u * 10 - 0.75) * 2 * Math.PI) / 3) + 1);
+const cubic = (u: number) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
 
 export type { Kind, KindStyle, KindStyles, Tone } from "./icons";
 
@@ -36,6 +38,8 @@ export type Pin = {
   fan?: { index: number; count: number; hub: string };
   /** The selected place: never clustered, and nearby pins ring around it. */
   anchor?: boolean;
+  /** Where the pin sits when the land is inflated by river; it slides there as the map morphs. */
+  alt?: { lat: number; lng: number };
   /** Tracked but not drawn (a hub hidden while something else is selected). */
   ghost?: boolean;
 };
@@ -55,34 +59,6 @@ export function toVector(lat: number, lng: number, radius = RADIUS): THREE.Vecto
 function toLatLng(v: THREE.Vector3): { lat: number; lng: number } {
   const n = v.clone().normalize();
   return { lat: (Math.asin(n.y) * 180) / Math.PI, lng: (Math.atan2(-n.z, n.x) * 180) / Math.PI };
-}
-
-function earthTexture(renderer: THREE.WebGLRenderer): THREE.CanvasTexture {
-  const canvas = document.createElement("canvas");
-  canvas.width = 2048;
-  canvas.height = 1024;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("canvas");
-  ctx.fillStyle = THEME.earth.sea;
-  ctx.fillRect(0, 0, 2048, 1024);
-  const topology = world as unknown as Topology;
-  const countries = feature(topology, topology.objects.countries) as FeatureCollection<Geometry>;
-  const projection = geoEquirectangular().scale(2048 / (2 * Math.PI)).translate([1024, 512]);
-  const path = geoPath(projection, ctx);
-  const land = THEME.earth.land;
-  countries.features.forEach((country, i) => {
-    ctx.beginPath();
-    path(country);
-    ctx.fillStyle = land[i % land.length];
-    ctx.fill();
-    ctx.strokeStyle = THEME.earth.border;
-    ctx.lineWidth = 1.1;
-    ctx.stroke();
-  });
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
-  return tex;
 }
 
 /** A point on a ring of `radius` world units around `center`, lifted off the surface. */
@@ -144,6 +120,9 @@ type Marker = THREE.Sprite & {
     label: string;
     tone: Tone;
     home: THREE.Vector3;
+    /** Real and inflated homes; home slides between them with the morph. */
+    home0: THREE.Vector3;
+    home1: THREE.Vector3 | null;
     fan: { index: number; count: number; hub: string } | null;
     anchor: boolean;
     ghost: boolean;
@@ -207,6 +186,12 @@ export class Globe {
   private shift = { x: 0, y: 0 };
   private tip: HTMLElement;
   private hover: [number, number] | null = null;
+  private painter: EarthPainter | null = null;
+  /** The land morph: 0 real, 1 inflated by river. */
+  private morph = { t: 0, from: 0, to: 0, start: 0, ms: 0 };
+  private still = false;
+  /** Called every drawn frame with the time and the morph, for layers drawn on top of the globe (rivers). */
+  onFrame?: (now: number, t: number) => void;
 
   constructor(private root: HTMLElement, options: GlobeOptions) {
     this.onPick = options.onPick;
@@ -237,9 +222,10 @@ export class Globe {
     this.controls.addEventListener("start", () => {
       this.flight = null;
     });
+    this.painter = new EarthPainter(this.renderer);
     const globe = new THREE.Mesh(
-      new THREE.SphereGeometry(RADIUS, 40, 28),
-      new THREE.MeshPhongMaterial({ map: earthTexture(this.renderer), specular: 0x111111, shininess: 4 }),
+      new THREE.SphereGeometry(RADIUS, 64, 40),
+      new THREE.MeshPhongMaterial({ map: this.painter.texture, specular: 0x111111, shininess: 4 }),
     );
     this.scene.add(globe);
     this.scene.add(new THREE.AmbientLight(0xc8c8cc, 1.05));
@@ -251,6 +237,7 @@ export class Globe {
     this.scene.add(fill);
     this.scene.add(rimGlow(RADIUS));
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.still = still;
     const space = new Space(this.scene, this.camera, RADIUS, still, options.space);
     this.scene.add(this.arcs, this.ripples, this.markers, this.badges);
     const canvas = this.renderer.domElement;
@@ -286,6 +273,8 @@ export class Globe {
       space.update(Math.min((now - last) / 1000, 0.05));
       last = now;
       this.fly(now);
+      this.stepMorph(now);
+      this.onFrame?.(now, this.morph.t);
       this.offsetView();
       this.controls?.update();
       this.layout(now / 1000);
@@ -328,6 +317,41 @@ export class Globe {
       this.arcs.add(line);
     }
     this.arcKeys = next;
+  }
+
+  /** Hand the painter the inflated outlines. Until then the globe shows the plain map and cannot inflate. */
+  setShapes(asset: InflateAsset) {
+    this.painter?.setShapes(asset);
+    this.painter?.paint(this.morph.t);
+  }
+
+  /** Morph the land to its river-inflated shape (true) or back to real (false), from wherever it is now. */
+  setInflation(on: boolean) {
+    const to = on ? 1 : 0;
+    if (to === this.morph.to && this.morph.t === to) return;
+    this.morph = { t: this.morph.t, from: this.morph.t, to, start: performance.now(), ms: this.still ? 0 : on ? INFLATE_MS : DEFLATE_MS };
+  }
+
+  /** The land morph right now: 0 real, 1 inflated (briefly above 1 while it overshoots). */
+  get inflation(): number {
+    return this.morph.t;
+  }
+
+  private stepMorph(now: number) {
+    const m = this.morph;
+    if (m.t !== m.to) {
+      const u = m.ms ? Math.min((now - m.start) / m.ms, 1) : 1;
+      m.t = u >= 1 ? m.to : m.from + (m.to - m.from) * (m.to ? elastic(u) : cubic(u));
+      this.painter?.paint(m.t);
+      for (const marker of this.markers.children as Marker[]) this.place(marker);
+    }
+  }
+
+  /** A marker's home for the current morph. */
+  private place(m: Marker) {
+    const d = m.userData;
+    if (!d.home1) return;
+    d.home.copy(d.home0).lerp(d.home1, this.morph.t).setLength(d.home0.length());
   }
 
   /** Turn the globe to face a place. Keeps the current zoom unless a distance is given. */
@@ -703,12 +727,16 @@ export class Globe {
       kind: pin.kind,
       label: pin.label,
       tone: pin.tone,
-      home,
+      home: home.clone(),
+      home0: home,
+      home1: pin.alt ? toVector(pin.alt.lat, pin.alt.lng, home.length()) : null,
       fan: pin.fan ?? null,
       anchor: pin.anchor === true,
       ghost: pin.ghost === true,
       ring: pin.ripple ? this.ring(hex(pin.tone === "focus" ? THEME.accent : THEME.ink)) : null,
     };
+    this.place(sprite);
+    sprite.position.copy(sprite.userData.home);
     this.markers.add(sprite);
   }
 
