@@ -1,0 +1,411 @@
+<style>
+.riv{max-width:72rem;margin-inline:auto;font-family:var(--font-anthropic-sans);color:var(--color-fg)}
+.riv h1{font-family:var(--font-anthropic-serif);font-weight:400;font-size:var(--cds-font-size-title);margin:0 0 var(--cds-gap-xs)}
+.riv .take{color:var(--color-fg-muted);font-size:var(--cds-font-size-body);margin:0 0 var(--cds-gap-lg);max-width:46rem}
+.riv .take span{color:var(--color-fg);font-variant-numeric:tabular-nums}
+.riv .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr));gap:var(--cds-gap-md);margin-bottom:var(--cds-gap-md)}
+.riv .card{background:var(--color-panel);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:var(--cds-pad-lg);min-width:0}
+.riv h2{font-size:var(--cds-font-size-heading);font-weight:var(--cds-font-weight-medium);margin:0}
+.riv .note{color:var(--color-fg-muted);font-size:var(--cds-font-size-caption);margin:2px 0 var(--cds-gap-sm)}
+.riv .head{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--cds-gap-md);flex-wrap:wrap}
+.riv .seg{display:inline-flex;border:1px solid var(--color-border-line);border-radius:var(--cds-radius);overflow:hidden}
+.riv .seg button{font:inherit;font-size:var(--cds-font-size-caption);padding:6px 12px;border:0;background:transparent;color:var(--color-fg-muted);cursor:pointer}
+.riv .seg button.on{background:var(--color-fg);color:var(--color-bg)}
+.riv .chart{position:relative;min-height:340px}
+.riv .ctl{display:flex;gap:var(--cds-gap-sm);flex-wrap:wrap}
+.riv .x{font:inherit;font-size:var(--cds-font-size-caption);padding:6px 12px;border:1px solid var(--color-border-line);border-radius:var(--cds-radius);background:transparent;color:var(--color-fg-muted);cursor:pointer}
+.riv .dbody{display:grid;grid-template-columns:minmax(10rem,18rem) 1fr;gap:var(--cds-gap-lg);align-items:start;margin-top:var(--cds-gap-sm)}
+@media (max-width:34rem){.riv .dbody{grid-template-columns:1fr}}
+.riv .clist{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.riv .clist li{display:flex;flex-direction:column;font-size:var(--cds-font-size-caption);padding:6px 8px;border:1px solid var(--color-border-line);border-radius:var(--cds-radius)}
+.riv .clist li.on{border-color:var(--color-fg)}
+.riv .clist span{color:var(--color-fg-muted)}
+.riv .rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(9rem,1fr));gap:var(--cds-gap-sm)}
+.riv .rcard{font:inherit;text-align:left;display:flex;flex-direction:column;gap:2px;padding:var(--cds-pad-xs);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);background:transparent;color:var(--color-fg);cursor:pointer}
+.riv .rcard.on{border-color:var(--color-fg)}
+.riv .rcard b{font-weight:var(--cds-font-weight-medium);font-size:var(--cds-font-size-caption)}
+.riv .rcard span,.riv .rcard i{font-style:normal;font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.riv .chart svg{display:block}
+.riv .tip{position:absolute;pointer-events:none;background:var(--cds-surface-popover);border:1px solid var(--cds-border);border-radius:var(--cds-radius);box-shadow:var(--cds-shadow-popover);padding:var(--cds-pad-xs) var(--cds-pad-sm);font-size:var(--cds-font-size-caption);display:none;white-space:nowrap;z-index:2}
+.riv .tip b{font-weight:600}
+.riv .tip i{font-style:normal;color:var(--cds-text-secondary)}
+.riv .legend{display:flex;gap:var(--cds-gap-md);flex-wrap:wrap;font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);margin-top:var(--cds-gap-sm)}
+.riv .legend s{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;margin-right:.35rem;text-decoration:none}
+.riv .failed{display:flex;align-items:center;justify-content:center;gap:.4rem;min-height:340px;color:var(--color-fg-muted);font-size:var(--cds-font-size-caption)}
+.riv .failed::before{content:"";width:.375rem;height:.375rem;border-radius:50%;background:var(--color-bad)}
+.riv .tbox{max-height:26rem;overflow:auto}
+.riv table{width:100%;border-collapse:collapse;font-size:var(--cds-font-size-caption);font-variant-numeric:tabular-nums}
+.riv th{position:sticky;top:0;background:var(--color-panel);text-align:left;font-weight:var(--cds-font-weight-medium);color:var(--color-fg-muted);padding:6px 8px;cursor:pointer;white-space:nowrap;border-bottom:1px solid var(--color-border-line)}
+.riv td{padding:6px 8px;border-bottom:1px solid var(--cds-chart-grid)}
+.riv th.n,.riv td.n{text-align:right}
+.riv .bar{display:inline-block;height:.5rem;border-radius:4px;vertical-align:middle;margin-right:6px;background:var(--cds-chart-muted)}
+.riv .bar.up{background:var(--dash-c0)}
+@media (max-width:34rem){.riv .hide-s{display:none}}
+[data-dash-source-state=refreshing]{opacity:.5;transition:opacity var(--cds-dur-slow)}
+</style>
+<div class="riv">
+  <h1>Countries inflated by their longest river</h1>
+  <p class="take">Resize each country by the length of its longest river instead of its land area and <span data-source="top" data-field="most" data-row="0">—</span> swells to <span data-source="top" data-field="most_x" data-row="0">—</span> its fair share, while <span data-source="top" data-field="least" data-row="0">—</span> shrinks to <span data-source="top" data-field="least_x" data-row="0">—</span>.</p>
+  <div class="card" style="margin-bottom:var(--cds-gap-md)">
+    <div class="head"><div><h2>The world, re-sized by river</h2><p class="note">Each country’s area follows its longest river. Colour shows that river’s length.</p></div>
+      <div class="ctl"><div class="seg" role="group" aria-label="Map view"><button type="button" data-mode="real">Real size</button><button type="button" data-mode="inflated" class="on">Inflated by river</button></div>
+      <div class="seg zoom" role="group" aria-label="Zoom"><button type="button" data-z="out" aria-label="Zoom out">−</button><button type="button" data-z="in" aria-label="Zoom in">+</button><button type="button" data-z="reset">Reset</button></div></div>
+    <div class="chart" id="c-map" data-source="inflation"><div class="dash-skeleton" style="height:340px"></div></div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div class="card" id="detail" style="margin-bottom:var(--cds-gap-md)" hidden></div>
+  <div class="card" style="margin-bottom:var(--cds-gap-md)"><h2>Rivers behind the map</h2><p class="note">Longest rivers, with an illustrative sketch of each.</p><div class="rgrid" id="rivers" data-source="inflation"></div></div>
+  <div class="card"><h2>Inflation by country</h2><p class="note">Inflation = a country’s share of total river length ÷ its share of total land area.</p>
+    <div class="tbox"><table id="tbl" data-source="inflation" data-row-key="country"><thead><tr>
+      <th data-field="country" data-k="country">Country</th>
+      <th class="n" data-field="area_km2" data-k="area_km2">Area km²</th>
+      <th class="hide-s" data-field="river" data-k="river">River</th>
+      <th class="n" data-field="river_km" data-k="river_km">River km</th>
+      <th class="n hide-s" data-field="area_rank" data-k="area_rank">Area rank</th>
+      <th class="n hide-s" data-field="river_rank" data-k="river_rank">River rank</th>
+      <th class="n" data-field="inflation" data-k="inflation">Inflation</th>
+    </tr></thead><tbody></tbody></table></div>
+    <p class="note" style="margin-top:var(--cds-gap-sm)">Whole-river lengths; a shared river counts in full for each country it crosses. Figures are approximate.</p>
+  </div>
+</div>
+<script src="world.js"></script>
+<script>
+(function(){
+  const page=document.querySelector('.riv');
+  page.style.setProperty('--dash-c0',dash.colors[0]);
+  dash.calc('inflation',{
+    title:'River inflation by country',
+    description:'Each country’s share of total river length divided by its share of total land area, plus ranks on each.',
+    inputs:['countries'],
+    fn:(countries)=>{
+      const rows=countries.map(r=>({country:r.country,area_km2:+r.area_km2,river:r.river,river_km:+r.river_km}));
+      const A=rows.reduce((s,r)=>s+r.area_km2,0),R=rows.reduce((s,r)=>s+r.river_km,0);
+      const byA=[...rows].sort((a,b)=>b.area_km2-a.area_km2).map(r=>r.country);
+      const byR=[...rows].sort((a,b)=>b.river_km-a.river_km).map(r=>r.country);
+      return rows.map(r=>({...r,area_rank:byA.indexOf(r.country)+1,river_rank:byR.indexOf(r.country)+1,inflation:(r.river_km/R)/(r.area_km2/A)}));
+    }});
+  dash.calc('top',{
+    title:'Biggest winner and loser',
+    description:'The country that gains the most and the one that shrinks the most.',
+    inputs:['inflation'],
+    fn:(inflation)=>{
+      const s=[...inflation].sort((a,b)=>b.inflation-a.inflation);
+      return [{most:s[0].country,most_x:s[0].inflation,least:s[s.length-1].country,least_x:s[s.length-1].inflation}];
+    }});
+
+  const fmt=d3.format(','),fx=d3.format('.1f');
+  const fmtX=v=>v>=10?d3.format(',.0f')(v)+'×':fx(v)+'×';
+  let sortK='inflation',sortDir=-1,cache=[];
+
+  function failed(el){el.innerHTML='';const d=document.createElement('div');d.className='failed';d.textContent='Failed to load';el.appendChild(d)}
+
+  const ALIAS={'United States':'United States of America','DR Congo':'Dem. Rep. Congo'};
+  const view={lon:15,lat:20,z:1,t:0};
+  let mode='inflated',played=false,rerender=null,geoCache=null,anim=0;
+  const ease=d3.easeElasticOut||d3.easeCubicOut;
+  const A1=1.340264,A2=-0.081106,A3=0.000893,A4=0.003796,RAD=Math.PI/180;
+  const BINS=[1000,2000,3500,5000],PCT=[22,40,60,80,100];
+  const BIN_LABELS=['under 1,000 km','1,000–2,000','2,000–3,500','3,500–5,000','5,000 km +'];
+  const binOf=km=>BINS.filter(b=>km>=b).length;
+  function eq(lon,lat){
+    const th=Math.asin(Math.sqrt(3)/2*Math.sin(lat*RAD)),t2=th*th,t6=t2*t2*t2;
+    return [2*Math.sqrt(3)*lon*RAD*Math.cos(th)/(3*(A1+3*A2*t2+t6*(7*A3+9*A4*t2))),th*(A1+A2*t2+t6*(A3+A4*t2))];
+  }
+  function invEq(x,y){
+    let th=y/A1;
+    for(let i=0;i<8;i++){const t2=th*th,t6=t2*t2*t2;th-=(th*(A1+A2*t2+t6*(A3+A4*t2))-y)/(A1+3*A2*t2+t6*(7*A3+9*A4*t2))}
+    th=Math.max(-Math.PI/3,Math.min(Math.PI/3,th));
+    const t2=th*th,t6=t2*t2*t2;
+    const lat=Math.asin(Math.max(-1,Math.min(1,2*Math.sin(th)/Math.sqrt(3))))/RAD;
+    const lon=3*x*(A1+3*A2*t2+t6*(7*A3+9*A4*t2))/(2*Math.sqrt(3)*Math.cos(th))/RAD;
+    return [Math.max(-180,Math.min(180,lon)),lat];
+  }
+  const polys=g=>g.type==='Polygon'?[g.coordinates]:g.coordinates;
+  const ringArea=pts=>{let a=0;for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[(i+1)%pts.length];a+=p[0]*q[1]-q[0]*p[1]}return a/2};
+  // area of a region's rings (holes subtract) and the area-weighted centre of its outer rings
+  function stats(g){
+    let a=0,ao=0,cx=0,cy=0;
+    for(const r of g.rings){
+      const sa=ringArea(r.pts),aa=Math.abs(sa);a+=r.hole?-aa:aa;
+      if(r.hole||!sa)continue;
+      let sx=0,sy=0;
+      for(let i=0;i<r.pts.length;i++){const p=r.pts[i],q=r.pts[(i+1)%r.pts.length],cr=p[0]*q[1]-q[0]*p[1];sx+=(p[0]+q[0])*cr;sy+=(p[1]+q[1])*cr}
+      cx+=sx/(6*sa)*aa;cy+=sy/(6*sa)*aa;ao+=aa;
+    }
+    return {area:Math.max(a,1e-6),cx:ao?cx/ao:0,cy:ao?cy/ao:0};
+  }
+  // contiguous cartogram: every vertex is pushed by each region's size error until areas match g.want
+  function cartogram(regs,iters){
+    const R=regs.map(g=>({want:g.want,rings:g.rings.map(r=>({hole:r.hole,pts:r.pts.map(p=>[p[0],p[1]])}))}));
+    for(let it=0;it<iters;it++){
+      let T=0,D=0;
+      for(const g of R){Object.assign(g,stats(g));T+=g.area;D+=g.want}
+      let err=0;
+      for(const g of R){const d=g.want*T/D;g.rad=Math.sqrt(g.area/Math.PI);g.m=Math.sqrt(d/Math.PI)-g.rad;err+=Math.max(g.area,d)/Math.min(g.area,d)}
+      const red=1/(1+err/R.length),n=R.length;
+      const CX=new Float64Array(n),CY=new Float64Array(n),RD=new Float64Array(n),M=new Float64Array(n);
+      for(let i=0;i<n;i++){CX[i]=R[i].cx;CY[i]=R[i].cy;RD[i]=R[i].rad;M[i]=R[i].m}
+      for(const g of R)for(const r of g.rings)for(const p of r.pts){
+        let dx=0,dy=0;
+        for(let i=0;i<n;i++){
+          const ex=p[0]-CX[i],ey=p[1]-CY[i],dist=Math.sqrt(ex*ex+ey*ey)||1e-6,x=dist/RD[i];
+          const f=dist>RD[i]?M[i]/x:M[i]*x*x*(4-3*x);
+          dx+=f*ex/dist;dy+=f*ey/dist;
+        }
+        p[0]+=dx*red;p[1]+=dy*red;
+      }
+    }
+    return R;
+  }
+  // real and river-inflated longitude/latitude for every ring of every country
+  function prepare(rows){
+    const W0=1000,x180=eq(180,0)[0],ymax=eq(0,90)[1],sc=W0/(2*x180),h0=2*ymax*sc;
+    const P=(lon,lat)=>{const p=eq(lon,lat);return [W0/2+p[0]*sc,h0/2-p[1]*sc]};
+    const byName=new Map(rows.map(r=>[ALIAS[r.country]||r.country,r]));
+    const regs=Object.keys(window.WORLD).map(name=>{
+      const rings=[];
+      for(const pl of polys(window.WORLD[name]))pl.forEach((ring,i)=>rings.push({hole:i>0,ll:ring,pts:ring.map(c=>P(c[0],c[1]))}));
+      const g={name,row:byName.get(name),rings};g.area0=stats(g).area;return g;
+    });
+    const used=regs.filter(g=>g.row);
+    const lam=1.8*d3.sum(used,g=>g.area0)/d3.sum(used,g=>g.row.river_km);
+    for(const g of regs)g.want=g.row?g.row.river_km*lam:g.area0*0.35;
+    const out=cartogram(regs,14);
+    let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+    for(const g of out)for(const r of g.rings)for(const p of r.pts){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])}
+    // fit the stretched map back onto the original frame, then read it as longitude/latitude
+    const back=p=>invEq(((p[0]-x0)/(x1-x0)*W0-W0/2)/sc,(h0/2-(p[1]-y0)/(y1-y0)*h0)/sc);
+    return regs.map((g,i)=>({
+      name:g.name,row:g.row,
+      rings:g.rings.map((r,j)=>({a:r.ll,b:out[i].rings[j].pts.map(back)}))
+    }));
+  }
+  // one ring on the globe, morphed by t (0 real, 1 inflated); hidden points are pinned to the horizon
+  function ringPath(ring,t,v,R,cx,cy){
+    const lam0=v.lon*RAD,sp=Math.sin(v.lat*RAD),cp=Math.cos(v.lat*RAD);
+    let d='',vis=0;
+    for(let i=0;i<ring.a.length;i++){
+      const A=ring.a[i],B=ring.b[i];
+      let lat=A[1]+(B[1]-A[1])*t;
+      lat=Math.max(-89.9,Math.min(89.9,lat));
+      const l=(A[0]+(B[0]-A[0])*t)*RAD-lam0,f=lat*RAD,cf=Math.cos(f),cl=Math.cos(l);
+      let x=cf*Math.sin(l),y=cp*Math.sin(f)-sp*cf*cl;
+      if(sp*Math.sin(f)+cp*cf*cl>0)vis++;
+      else{const m=Math.hypot(x,y)||1;x/=m;y/=m}
+      d+=(i?'L':'M')+(cx+R*x).toFixed(1)+','+(cy-R*y).toFixed(1);
+    }
+    return vis?d+'Z':'';
+  }
+  function gratPath(v,R,cx,cy){
+    const lam0=v.lon*RAD,sp=Math.sin(v.lat*RAD),cp=Math.cos(v.lat*RAD);
+    let d='';
+    const run=pts=>{
+      let pen=false;
+      for(const c of pts){
+        const l=c[0]*RAD-lam0,f=c[1]*RAD,cf=Math.cos(f),cl=Math.cos(l);
+        if(sp*Math.sin(f)+cp*cf*cl<=0){pen=false;continue}
+        d+=(pen?'L':'M')+(cx+R*cf*Math.sin(l)).toFixed(1)+','+(cy-R*(cp*Math.sin(f)-sp*cf*cl)).toFixed(1);pen=true;
+      }
+    };
+    for(let lo=-180;lo<180;lo+=30){const pts=[];for(let la=-90;la<=90;la+=5)pts.push([lo,la]);run(pts)}
+    for(let la=-60;la<=60;la+=30){const pts=[];for(let lo=-180;lo<=180;lo+=5)pts.push([lo,la]);run(pts)}
+    return d;
+  }
+  const fillOf=s=>s.row?'color-mix(in srgb, '+dash.colors[0]+' '+PCT[binOf(s.row.river_km)]+'%, var(--cds-chart-grid))':'var(--cds-chart-grid)';
+
+  function map(el,rows){
+    el.innerHTML='';
+    if(!geoCache||geoCache.key!==rows.length)geoCache={key:rows.length,items:prepare(rows)};
+    const items=geoCache.items;
+    const w=Math.max(280,el.clientWidth),h=Math.min(560,Math.round(w*0.78)),cx=w/2,cy=h/2,base=h/2*0.92;
+    const tip=document.createElement('div');tip.className='tip';
+    const svg=d3.select(el).append('svg').attr('width','100%').attr('viewBox','0 0 '+w+' '+h)
+      .style('touch-action','none').style('cursor','grab').style('display','block');
+    const ocean=svg.append('circle').attr('cx',cx).attr('cy',cy).style('fill','var(--color-bg)').style('stroke','var(--cds-chart-axis)').style('stroke-width',1);
+    const grat=svg.append('path').style('fill','none').style('stroke','var(--cds-chart-grid)').style('stroke-width',.6);
+    const paths=svg.append('g').selectAll('path').data(items).join('path')
+      .style('stroke-linejoin','round').style('fill',fillOf)
+      .style('stroke','var(--color-bg)').style('stroke-width',.6).attr('vector-effect','non-scaling-stroke');
+    function render(){
+      const R=base*view.z;
+      ocean.attr('r',R);
+      grat.attr('d',gratPath(view,R,cx,cy));
+      paths.attr('d',s=>s.rings.map(r=>ringPath(r,view.t,view,R,cx,cy)).join(''));
+    }
+    rerender=render;render();
+    paths.on('mousemove',function(ev,s){
+      if(dragging)return;
+      const b=el.getBoundingClientRect();
+      d3.select(this).style('stroke','var(--color-fg)').style('stroke-width',1.5);
+      tip.innerHTML='';
+      const t=document.createElement('b');t.textContent=s.row?s.row.country:s.name;tip.appendChild(t);
+      if(s.row){
+        const r=s.row;
+        const l1=document.createElement('div');const i1=document.createElement('i');i1.textContent=fmt(r.area_km2)+' km² land';l1.appendChild(i1);
+        const l2=document.createElement('div');const i2=document.createElement('i');i2.textContent=r.river+', '+fmt(r.river_km)+' km';l2.appendChild(i2);
+        const l3=document.createElement('div');l3.textContent=fmtX(r.inflation)+' its land share';
+        tip.append(l1,l2,l3);
+      }
+      tip.style.display='block';
+      const x=Math.min(ev.clientX-b.left+12,Math.max(0,b.width-tip.offsetWidth-4));
+      tip.style.left=x+'px';tip.style.top=Math.max(0,ev.clientY-b.top-tip.offsetHeight-8)+'px';
+    }).on('mouseleave',()=>{paintSel();tip.style.display='none'})
+      .on('click',(ev,s)=>{if(moved<5&&s.row)pick(s.row.river,s.row.country)});
+    let dragging=false,lx=0,ly=0,pending=false,moved=0;
+    const queue=()=>{if(pending)return;pending=true;requestAnimationFrame(()=>{pending=false;render()})};
+    svg.on('pointerdown',ev=>{dragging=true;moved=0;lx=ev.clientX;ly=ev.clientY;svg.style('cursor','grabbing')})
+      .on('pointermove',ev=>{
+        if(!dragging)return;
+        const k=0.4/view.z;
+        moved+=Math.abs(ev.clientX-lx)+Math.abs(ev.clientY-ly);
+        if(moved>=5)tip.style.display='none';
+        view.lon-=(ev.clientX-lx)*k;view.lat=Math.max(-85,Math.min(85,view.lat+(ev.clientY-ly)*k));
+        view.lon=((view.lon+540)%360)-180;
+        lx=ev.clientX;ly=ev.clientY;queue();
+      })
+      .on('pointerup pointercancel pointerleave',()=>{dragging=false;svg.style('cursor','grab')});
+    paintSel=()=>{
+      const hit=s=>sel.river&&s.row&&s.row.river===sel.river;
+      paths.style('stroke',s=>hit(s)?'var(--color-fg)':'var(--color-bg)').style('stroke-width',s=>hit(s)?2:.6);
+    };
+    paintSel();
+    el.appendChild(tip);
+    if(!played){played=true;inflate(true)}
+  }
+
+  // morph between the real and the inflated shapes; the elastic ease makes it overshoot like a balloon
+  function inflate(on){
+    cancelAnimationFrame(anim);
+    const from=view.t,to=on?1:0,t0=performance.now(),dur=on?2400:900;
+    const step=now=>{
+      const u=Math.min(1,(now-t0)/dur);
+      view.t=from+(to-from)*(on?ease(u):d3.easeCubicInOut(u));
+      if(rerender)rerender();
+      if(u<1)anim=requestAnimationFrame(step);
+    };
+    anim=requestAnimationFrame(step);
+  }
+
+  document.querySelectorAll('.seg:not(.zoom) button').forEach(b=>b.addEventListener('click',()=>{
+    mode=b.dataset.mode;
+    document.querySelectorAll('.seg:not(.zoom) button').forEach(x=>x.classList.toggle('on',x===b));
+    inflate(mode==='inflated');
+  }));
+  document.querySelectorAll('.zoom button').forEach(b=>b.addEventListener('click',()=>{
+    const a=b.dataset.z;
+    if(a==='reset'){view.z=1;view.lon=15;view.lat=20}
+    else view.z=Math.max(1,Math.min(8,view.z*(a==='in'?1.5:1/1.5)));
+    if(rerender)rerender();
+  }));
+  (function legend(){
+    const lg=document.getElementById('legend');
+    const add=(bg,text)=>{const s=document.createElement('span'),i=document.createElement('s');i.style.background=bg;s.append(i,document.createTextNode(text));lg.appendChild(s)};
+    const lab=document.createElement('span');lab.textContent='Longest river:';lg.appendChild(lab);
+    BIN_LABELS.forEach((t,i)=>add('color-mix(in srgb, '+dash.colors[0]+' '+PCT[i]+'%, var(--cds-chart-grid))',t));
+    add('var(--cds-chart-grid)','not in table');
+  })();
+
+  // click selection: a river (and the country that was clicked) lights up on the globe and opens a detail card
+  const sel={river:null,country:null};
+  let paintSel=null;
+  function seeded(str){let h=2166136261;for(const ch of str){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return ()=>{h=Math.imul(h^(h>>>15),2246822507);h=Math.imul(h^(h>>>13),3266489909);h^=h>>>16;return (h>>>0)/4294967296}}
+  // a small drawn sketch of a river: meander, tributaries, banks. Illustration only, not a real course.
+  function riverArt(name,km){
+    const wd=160,ht=90,rnd=seeded(name),NS='http://www.w3.org/2000/svg';
+    const svg=document.createElementNS(NS,'svg');
+    svg.setAttribute('viewBox','0 0 '+wd+' '+ht);svg.setAttribute('width','100%');svg.setAttribute('role','img');svg.setAttribute('aria-label','Sketch of the '+name);
+    const mk=(tag,attrs)=>{const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);svg.appendChild(e);return e};
+    mk('rect',{width:wd,height:ht,rx:6,style:'fill:color-mix(in srgb, '+dash.colors[0]+' 10%, var(--color-panel))'});
+    const amp=8+rnd()*14,fr=0.05+rnd()*0.06,ph=rnd()*6.28,y0=ht*(0.4+rnd()*0.2);
+    const pts=[];for(let x=-4;x<=wd+4;x+=6)pts.push([x,y0+amp*Math.sin(x*fr+ph)+4*Math.sin(x*fr*3.1+ph*2)]);
+    const ln=d3.line().curve(d3.curveBasis),width=1.5+Math.min(4,Math.log10(km)*1.2);
+    for(let i=0;i<3;i++){
+      const k=Math.floor(6+rnd()*(pts.length-12)),p=pts[k],up=rnd()<.5?-1:1;
+      const tr=[[p[0],p[1]],[p[0]-8-rnd()*8,p[1]+up*(10+rnd()*8)],[p[0]-14-rnd()*10,p[1]+up*(24+rnd()*10)]];
+      mk('path',{d:ln(tr),style:'fill:none;stroke:'+dash.colors[0]+';stroke-width:'+(width*0.5)+';stroke-linecap:round;opacity:.6'});
+    }
+    mk('path',{d:ln(pts),style:'fill:none;stroke:'+dash.colors[0]+';stroke-width:'+width+';stroke-linecap:round;stroke-linejoin:round'});
+    return svg;
+  }
+  const byRiver=rows=>{
+    const m=new Map();
+    for(const r of rows){if(!m.has(r.river))m.set(r.river,{river:r.river,km:r.river_km,rows:[]});m.get(r.river).rows.push(r)}
+    return [...m.values()].sort((a,b)=>b.km-a.km);
+  };
+  function pick(river,country){
+    sel.river=river;sel.country=country;
+    if(paintSel)paintSel();
+    showDetail();
+  }
+  function showDetail(){
+    const box=document.getElementById('detail');
+    box.innerHTML='';
+    const g=sel.river&&byRiver(cache).find(x=>x.river===sel.river);
+    if(!g){box.hidden=true;return}
+    box.hidden=false;
+    const head=document.createElement('div');head.className='head';
+    const hd=document.createElement('div');
+    const h2=document.createElement('h2');h2.textContent=g.river;
+    const nt=document.createElement('p');nt.className='note';nt.textContent=fmt(g.km)+' km long';
+    hd.append(h2,nt);
+    const close=document.createElement('button');close.type='button';close.className='x';close.textContent='Close';
+    close.addEventListener('click',()=>pick(null,null));
+    head.append(hd,close);
+    const body=document.createElement('div');body.className='dbody';
+    const art=document.createElement('div');art.className='art';art.appendChild(riverArt(g.river,g.km));
+    const list=document.createElement('div');
+    const lt=document.createElement('p');lt.className='note';lt.textContent='Flows through (countries in this table)';
+    const ul=document.createElement('ul');ul.className='clist';
+    for(const r of g.rows){
+      const li=document.createElement('li');if(r.country===sel.country)li.className='on';
+      const a=document.createElement('b');a.textContent=r.country;
+      const b=document.createElement('span');b.textContent=fmt(r.area_km2)+' km² land · river is '+fmtX(r.inflation)+' its land share';
+      li.append(a,b);ul.appendChild(li);
+    }
+    list.append(lt,ul);
+    body.append(art,list);
+    box.append(head,body);
+  }
+  function gallery(rows){
+    const el=document.getElementById('rivers');el.innerHTML='';
+    for(const g of byRiver(rows)){
+      const card=document.createElement('button');card.type='button';card.className='rcard'+(g.river===sel.river?' on':'');
+      const nm=document.createElement('b');nm.textContent=g.river;
+      const km=document.createElement('span');km.textContent=fmt(g.km)+' km';
+      const cs=document.createElement('i');cs.textContent=g.rows.map(r=>r.country).join(', ');
+      card.append(riverArt(g.river,g.km),nm,km,cs);
+      card.addEventListener('click',()=>pick(g.river,null));
+      el.appendChild(card);
+    }
+  }
+
+  function table(){
+    const tb=document.querySelector('#tbl tbody');tb.innerHTML='';
+    const rows=[...cache].sort((a,b)=>{const x=a[sortK],y=b[sortK];return (typeof x==='number'?x-y:String(x).localeCompare(String(y)))*sortDir});
+    const mx=d3.max(cache,r=>r.inflation)||1;
+    document.querySelectorAll('#tbl th').forEach(th=>th.setAttribute('aria-sort',th.dataset.k===sortK?(sortDir>0?'ascending':'descending'):'none'));
+    for(const r of rows){
+      const tr=document.createElement('tr');tr.dataset.key=r.country;
+      const cells=[[r.country,''],[fmt(r.area_km2),'n'],[r.river,'hide-s'],[fmt(r.river_km),'n'],[r.area_rank,'n hide-s'],[r.river_rank,'n hide-s']];
+      for(const c of cells){const td=document.createElement('td');td.className=c[1];td.textContent=c[0];tr.appendChild(td)}
+      const td=document.createElement('td');td.className='n';
+      const bar=document.createElement('span');bar.className='bar'+(r.inflation>1?' up':'');
+      bar.style.width=Math.max(2,Math.sqrt(r.inflation/mx)*60)+'px';
+      td.append(bar,document.createTextNode(fmtX(r.inflation)));tr.appendChild(td);tb.appendChild(tr);
+    }
+  }
+
+  document.querySelectorAll('#tbl th').forEach(th=>th.addEventListener('click',()=>{
+    const k=th.dataset.k;if(k===sortK)sortDir=-sortDir;else{sortK=k;sortDir=(k==='country'||k==='river')?1:-1}
+    table();
+  }));
+
+  dash.onData(()=>{
+    const d=dash.data('inflation'),a=document.getElementById('c-map');
+    if(d.status==='error'||d.status==='connect'||d.status==='missing'){failed(a);return}
+    if(d.status!=='ok'||!d.data.length){return}
+    cache=d.data;
+    map(a,cache);table();gallery(cache);showDetail();
+  });
+})();
+</script>
