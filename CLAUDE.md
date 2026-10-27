@@ -16,6 +16,7 @@ Read `SUMMARY.md` first. It says what exists, what state it is in, and what is l
 ```bash
 npm install
 npm run dev     # PORT=5180 to pick a port
+npm test        # node --test over data/**/*.test.ts and src/**/*.test.ts
 npm run build   # tsc --noEmit, then vite build
 ```
 
@@ -29,7 +30,9 @@ Use this folder's `node_modules`. The one in `earth-template` is broken.
 - Do not edit `earth-template` or `C:\Users\omr\Projects\aunai`. This folder is the home for all of it.
 - Do not claim something renders unless it was opened in a browser. Say what was and was not checked.
 - Close every bash heredoc with its terminator line.
+- River discharge is a GloFAS model value; label it as a model, never as a gauge reading. Keep Open-Meteo's CC BY credit in the About panel and notices.
+- Mind Open-Meteo's ~600 locations/minute limit when testing; the browser keeps a 6-hour cache under `river-globe:flow`.
 
 ## Open items
 
-See "Good next steps" in `SUMMARY.md`: the leftover "NEWEST" label, checking arcs and fan-out, deciding on the stretched-countries view for the app, real data, real photos.
+See "Good next steps" in `SUMMARY.md`: review the inflate and river-flow views at full speed and merge their branch, check arcs and fan-out, smaller rivers and real gauges, real data, real photos.

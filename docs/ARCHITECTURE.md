@@ -1,6 +1,6 @@
 # Architecture
 
-A static Vite + TypeScript page with three.js for the globe. No framework. The browser loads only files from its own origin.
+A static Vite + TypeScript page with three.js for the globe. No framework. The browser loads only files from its own origin, except for the opt-in live river discharge (see River flow).
 
 ```
 build:   data/build.ts ──► dist/data.json                  (vite.config.ts writes it; dev serves it live)
@@ -35,6 +35,28 @@ Everything outside that context is dropped, except that other hubs stay as invis
 
 Everything is procedural, with no image files: a blurred Milky Way texture plus a separate crisp layer of band stars, two star layers, two shooting-star line segments that spawn in view, a few low-poly rocks, satellites on a ring that always faces the camera (so they circle the globe instead of crossing it), and a rim glow shader that fades to nothing at its outer edge.
 
+## Inflate by river (`data/geo/`, `src/inflate.ts`)
+
+- **Build time.** `data/geo/assets.ts` runs the cartogram (`data/geo/cartogram.ts`, which is the dashboard's Equal Earth + Dougenik algorithm, 14 iterations) over world-atlas 110m countries. It weights countries by `data/rivers.csv` and squeezes the rest to 35%. Pins and every river vertex are moved by the same displacement field. The output is `/inflate.json`, with real and inflated rings that have the same vertex count, plus the inflated pin positions.
+- **Browser.** `EarthPainter` repaints the 2048×1024 Earth texture at each morph value t, drawing `lerp(real, inflated, t)` in equirectangular. Rings are unwrapped so Russia and Fiji don't streak across the map. Markers keep `home0` and `home1`, and `home` slides between them, so pins, fans, arcs and fly-to all follow the land.
+- **Animation.** Inflating takes 2.4 s with an elastic overshoot. Deflating takes 0.9 s with cubic easing. Reduced motion jumps straight to the end.
+
+## River flow (`data/geo/rivers.ts`, `src/flow.ts`, `src/discharge.ts`)
+
+- **Lines.** These are Natural Earth 50m river and lake centre lines (`data/ne_50m_rivers_lake_centerlines.geojson`). Pieces with the same name are joined, and the longest path becomes the main stem.
+- **Direction rules, in order:**
+  1. A known mouth (`MOUTH`).
+  2. One end at the sea while the other is well inland.
+  3. An end touching the middle of another river.
+  4. The length-weighted digitising direction.
+  5. The nearer coast.
+- **Drawing.** One merged ribbon mesh draws the rivers. The vertex shader mixes the real and inflated positions and widens the ribbon sideways. The fragment shader reveals rivers from the source at 2,600 km/s and runs comet-shaped pulses toward the mouth. Hover uses a screen-space probe over the river vertices.
+- **Discharge.** Values come from the Open-Meteo Flood API (GloFAS v4, daily, about 5 km grid, CC BY 4.0).
+  - The free tier allows about 600 locations a minute. Rank ≤ 4 rivers are sampled at 2 points near the mouth, the rest at 1, which comes to about 470.
+  - After 65 s a second pass retries refused batches. It also re-samples rivers that came back dry, at ±0.05° and ±0.1°, because Natural Earth lines can sit a model cell off the GloFAS channel.
+  - Values under 1 m³/s count as no data.
+  - A complete answer is cached for 6 hours.
+
 ## Responsive rules (`src/app.ts`)
 
 | Window | Behaviour |
@@ -51,6 +73,6 @@ Everything is procedural, with no image files: a blurred Milky Way texture plus 
 
 ## Security
 
-- The page's Content Security Policy (`public/_headers`) allows only its own origin, and there are no inline scripts or styles.
+- The page's Content Security Policy (`public/_headers`) allows only its own origin, plus `connect-src https://flood-api.open-meteo.com` for the River flow view. That request is made only when the view is turned on. There are no inline scripts or styles.
 - Data is rendered as text, and card links must start with `https://`.
 - `config.about.rows[].html` is the one place HTML is inserted. It is authored by you, not loaded from data.

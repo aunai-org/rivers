@@ -6,11 +6,18 @@ An interactive Earth of the world's longest rivers and the countries they cross,
 - Land areas and river lengths are in `data/rivers.csv`. The figures are approximate, written from memory, and a shared river counts in full for each country.
 - "Inflation" is a country's share of total river length divided by its share of total land area.
 
+Two views sit at the top of the Filters panel:
+
+- **Inflate by river**: the land morphs into an area cartogram, where each country's area follows its longest river. Pins and rivers move with it.
+- **River flow · live**: 335 Natural Earth rivers draw out from source to mouth, and pulses run downstream. Width and pace follow today's modelled discharge from the Open-Meteo Flood API (GloFAS). This is the only time the page contacts another site.
+
 ## Run it
 
 ```bash
 npm install
-npm run dev
+npm run dev     # first request for /inflate.json builds the cartogram (a few seconds)
+npm test        # node --test: cartogram, river chaining and direction, assets, ribbon maths
+npm run build
 ```
 
 ## Also in this folder
