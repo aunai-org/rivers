@@ -13,7 +13,7 @@ type KindName = { one: string; many: string };
 export const config = {
   /** Prefix for browser storage keys (saved data, sound on/off). Change it per app so two apps on one domain don't clash. */
   id: "river-globe",
-  name: "River Globe",
+  name: "Rivers",
   tagline: "Countries by their longest river",
   /** The <meta name="description"> and the globe's accessible label. */
   description: "An interactive Earth showing the world's rivers and the countries they cross.",
