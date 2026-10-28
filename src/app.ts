@@ -211,6 +211,13 @@ function listedRivers(): RiversAsset["rivers"] {
   return [...list].sort((a, b) => q(b.name) - q(a.name) || b.km - a.km);
 }
 
+/** A short fingerprint of the river names (djb2), for the discharge cache key. */
+function nameHash(list: { name: string }[]): string {
+  let h = 5381;
+  for (const ch of list.map((r) => r.name).join("|")) h = ((h << 5) + h + ch.charCodeAt(0)) | 0;
+  return (h >>> 0).toString(36);
+}
+
 const countryName = () => (countryId ? (nodeById.get(countryId)?.name ?? null) : null);
 
 // ---- The globe -----------------------------------------------------------------------------------------------------
@@ -757,7 +764,8 @@ flowEl.addEventListener("click", async () => {
     dischargeAsked = true;
     // Live discharge loads behind the drawing; the rivers flow at a rank-based pace until it arrives.
     flowState = config.views.loading;
-    fetchDischarge(rivers.rivers, `${config.id}:flow`, (part) => {
+    // The cache is keyed by the river names too, so a renamed or added river is fetched rather than shown as no data.
+    fetchDischarge(rivers.rivers, `${config.id}:flow:${nameHash(rivers.rivers)}`, (part) => {
       riverFlow.setFlows(part);
       flowState = config.views.live;
       paintFlow();

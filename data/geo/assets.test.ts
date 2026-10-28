@@ -40,6 +40,18 @@ test("rivers list the countries they cross, in the table's spelling", async () =
   assert.ok(!crosses("Nile").includes("Brazil"));
 });
 
+test("namesake rivers get their country in the name, and only their own countries", async () => {
+  const { rivers } = await buildAssets();
+  const names = rivers.rivers.map((r) => r.name);
+  assert.equal(new Set(names).size, names.length, "every river name is unique");
+  const us = rivers.rivers.find((r) => r.name === "Colorado (United States)");
+  const ar = rivers.rivers.find((r) => r.name === "Colorado (Argentina)");
+  assert.ok(us && ar, `Colorados: ${names.filter((n) => n.startsWith("Colorado"))}`);
+  assert.ok(!us.countries.includes("Argentina"), `US Colorado crosses ${us.countries}`);
+  assert.deepEqual(ar.countries, ["Argentina"]);
+  assert.ok(names.includes("Negro (Brazil)") && names.includes("Negro (Argentina)"), "Río Negro and Rio Negro");
+});
+
 test("pins have inflated positions", async () => {
   const { inflate } = await buildAssets();
   assert.ok(inflate.points["hub:nile"], "hub:nile");

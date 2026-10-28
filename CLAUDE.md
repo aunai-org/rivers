@@ -31,7 +31,7 @@ Use this folder's `node_modules`. The one in `earth-template` is broken.
 - Do not claim something renders unless it was opened in a browser. Say what was and was not checked.
 - Close every bash heredoc with its terminator line.
 - River discharge is a GloFAS model value; label it as a model, never as a gauge reading. Keep Open-Meteo's CC BY credit in the About panel and notices.
-- Mind Open-Meteo's ~600 locations/minute limit when testing; the browser keeps a 6-hour cache under `river-globe:flow`.
+- Mind Open-Meteo's ~600 locations/minute limit when testing; the browser keeps a 6-hour cache under `river-globe:flow:<hash of river names>`.
 
 ## Open items
 

@@ -50,7 +50,7 @@ Everything is procedural, with no image files: a blurred Milky Way texture plus 
 
 ## River flow (`data/geo/rivers.ts`, `src/flow.ts`, `src/discharge.ts`)
 
-- **Lines.** These are Natural Earth 50m river and lake centre lines (`data/ne_50m_rivers_lake_centerlines.geojson`), canals dropped. Pieces with the same name are joined, and the longest path becomes the main stem. Each river lists the countries it crosses (point-in-polygon on the 110m outlines, plus the table's own river for each country).
+- **Lines.** These are Natural Earth 50m river and lake centre lines (`data/ne_50m_rivers_lake_centerlines.geojson`), canals dropped. Pieces with the same name are joined, except where they lie more than 15° apart (or are listed in `NAMESAKES`): those are different rivers, and `assets.ts` adds the country most of each lies in to its name, e.g. Colorado (Argentina). and the longest path becomes the main stem. Each river lists the countries it crosses (point-in-polygon on the 110m outlines, plus the table's own river for each country).
 - **Direction rules, in order:**
   1. A known mouth (`MOUTH`).
   2. One end at the sea while the other is well inland.

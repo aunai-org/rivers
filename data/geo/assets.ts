@@ -77,7 +77,7 @@ function make(): { inflate: InflateAsset; rivers: RiversAsset } {
     const [[x0, y0], [x1, y1]] = boxes[i];
     return y >= y0 && y <= y1 && (x0 <= x1 ? x >= x0 && x <= x1 : x >= x0 || x <= x1);
   };
-  const crossed = (r: (typeof lines)[number]): string[] => {
+  const crossed = (r: (typeof lines)[number]): { order: string[]; most: string | null } => {
     const first = new Map<string, number>();
     const hits = new Map<string, number>();
     let n = 0;
@@ -91,8 +91,16 @@ function make(): { inflate: InflateAsset; rivers: RiversAsset } {
         if (!first.has(name)) first.set(name, n);
       }
     }
-    return [...first].filter(([name]) => hits.get(name)! >= 2).sort((x, y) => x[1] - y[1]).map(([name]) => name);
+    const order = [...first].filter(([name]) => hits.get(name)! >= 2).sort((x, y) => x[1] - y[1]).map(([name]) => name);
+    const most = [...hits].sort((x, y) => y[1] - x[1])[0]?.[0] ?? null;
+    return { order, most };
   };
+  const crossings = lines.map(crossed);
+  // Rivers that share a name (the Colorado in the US and in Argentina) are told apart by the country most of each lies in.
+  const display = (i: number) => DISPLAY[lines[i].name] ?? lines[i].name;
+  const uses = new Map<string, number>();
+  lines.forEach((_, i) => uses.set(display(i), (uses.get(display(i)) ?? 0) + 1));
+  const nameOf = (i: number) => (uses.get(display(i))! > 1 ? `${display(i)} (${crossings[i].most ?? "?"})` : display(i));
   // The table says which country each of its rivers belongs to, even where a coarse border misses it.
   const tableCountries = new Map<string, string[]>();
   for (const r of rows) {
@@ -123,12 +131,12 @@ function make(): { inflate: InflateAsset; rivers: RiversAsset } {
   pinKeys.forEach((key, i) => (points[key] = [round(out.extra[i][1]), round(out.extra[i][0])]));
 
   let at = riverStart;
-  const rivers: RiversAsset["rivers"] = lines.map((r) => ({
-    name: DISPLAY[r.name] ?? r.name,
+  const rivers: RiversAsset["rivers"] = lines.map((r, i) => ({
+    name: nameOf(i),
     km: Math.round(r.km),
     rank: r.rank,
     ...(hubOf.has(r.name) ? { hub: hubOf.get(r.name) } : {}),
-    countries: [...new Set([...crossed(r), ...(tableCountries.get(r.name) ?? [])])],
+    countries: [...new Set([...crossings[i].order, ...(tableCountries.get(r.name) ?? [])])],
     gauges: r.gauges.map((g) => [round(g[1]), round(g[0])] as [number, number]),
     lines: r.lines.map((line) => {
       const moved = out.extra.slice(at, (at += line.length));

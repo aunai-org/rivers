@@ -32,6 +32,14 @@ const MIN_BRANCH_KM = 150;
 /** An end this close to the coast (degrees), with the other end well inland, is plainly at the sea. */
 const SEA = 0.4;
 const INLAND = 1.5;
+/**
+ * Pieces of one name farther apart than this (degrees) are different rivers: the Colorado in the US and in Argentina,
+ * the Río Negro and the Rio Negro. Natural Earth leaves gaps of 10–12° inside the Irtysh and the Salween, so it is set
+ * above those.
+ */
+const NAMESAKE_DEG = 15;
+/** Different rivers that share a name and lie closer than NAMESAKE_DEG; they split at a few degrees instead. */
+const NAMESAKES: Record<string, number> = { Grande: 5 };
 const SIMPLIFY = 0.02;
 const GAUGES = [0.03, 0.06, 0.1];
 
@@ -157,6 +165,19 @@ function chains(lines: LngLat[][]): Chain[] {
     .sort((x, y) => lineKm(y.pts) - lineKm(x.pts));
 }
 
+/** Group pieces that lie within `apart` degrees of each other (single link); each group is one river. */
+function namesakes(lines: LngLat[][], apart: number): LngLat[][][] {
+  const close = (a: LngLat[], b: LngLat[]) => a.some((p) => b.some((q) => deg(p, q) < apart));
+  const groups: LngLat[][][] = [];
+  for (const line of lines) {
+    const touching = groups.filter((g) => g.some((other) => close(line, other)));
+    const merged = [line, ...touching.flat()];
+    for (const g of touching) groups.splice(groups.indexOf(g), 1);
+    groups.push(merged);
+  }
+  return groups;
+}
+
 /** A coarse grid of points, for "is anything near here" questions. Points flagged `end` are ignored by near(). */
 function grid(points: Iterable<{ p: LngLat; tag: string; end: boolean }>) {
   const cells = new Map<string, { p: LngLat; tag: string; end: boolean }[]>();
@@ -207,7 +228,12 @@ export function buildRivers(fc: FeatureCollection<Geometry>, coast: LngLat[], mo
     }
   }
 
-  const rivers = [...byName].map(([name, { rank, lines }]) => ({ name, rank, paths: chains(lines) })).filter((r) => r.paths.length);
+  // Rivers that share a name come back as separate entries with the same name; the caller tells them apart.
+  const rivers = [...byName]
+    .flatMap(([name, { rank, lines }]) =>
+      namesakes(lines, NAMESAKES[name] ?? NAMESAKE_DEG).map((group) => ({ name, rank, paths: chains(group) })),
+    )
+    .filter((r) => r.paths.length);
   // A river meets another where it touches the other's middle; touching the other's end (a tributary's mouth at the
   // start of a renamed stem) says nothing about direction.
   const touch = grid(

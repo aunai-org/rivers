@@ -94,6 +94,26 @@ test("falls back to the digitised direction", () => {
   assert.ok(near(stem[stem.length - 1], [-1, 0]), `ends at ${stem[stem.length - 1]}`);
 });
 
+test("two rivers that share a name on different continents stay apart", () => {
+  // Colorado: one in the US, one in Argentina, 80° apart.
+  const out = buildRivers(fc([{ name: "Colorado", lines: [run([-114, 40], [-110, 32]), run([-70, -36], [-63, -39])] }]), [], {});
+  assert.equal(out.length, 2);
+  assert.ok(out.every((r) => r.name === "Colorado" && r.lines.length === 1));
+});
+
+test("a long gap in one river's line does not split it", () => {
+  // Irtysh: Natural Earth leaves a 12° gap between the upper and lower river.
+  const out = buildRivers(fc([{ name: "Irtysh", lines: [run([86, 48], [90, 47]), run([74, 56], [69, 61])] }]), [], {});
+  assert.equal(out.length, 1);
+  assert.equal(out[0].lines.length, 2);
+});
+
+test("known namesakes split even when close", () => {
+  // Rio Grande in Brazil and Río Grande in Bolivia, 12° apart.
+  const out = buildRivers(fc([{ name: "Grande", lines: [run([-50, -20], [-45, -22]), run([-64, -20], [-63, -16])] }]), [], {});
+  assert.equal(out.length, 2);
+});
+
 test("canals are not rivers", () => {
   const out = buildRivers(fc([{ name: "Suez Canal", lines: [run([32, 30], [32, 31])] }, { name: "Nile", lines: [run([31, 25], [31, 30])] }]), [], {});
   assert.deepEqual(out.map((r) => r.name), ["Nile"]);
