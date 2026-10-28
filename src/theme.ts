@@ -57,7 +57,8 @@ export const SCENE: Record<Mode, ScenePalette> = {
     border: "#9aa1aa",
     bands: ["#e3edf9", "#bcd4f3", "#8fb6ec", "#5f95e2", "#3b78d6"],
     river: "#1f5fbf",
-    head: "#0a2a66",
+    // Pastel red: a navy head vanished into the blue river on a pale map.
+    head: "#f07a7a",
     glow: "#7aa7d9",
     glowStrength: 0.55,
   },

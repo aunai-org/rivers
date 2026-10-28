@@ -34,6 +34,12 @@ test("light mode is light: pale sea and land, darker rivers", () => {
   assert.ok(luma(L.river) < luma(L.sea) - 60, "rivers stand out against the sea");
 });
 
+test("light-mode pulses stand out from the blue river: a warm head", () => {
+  const [r, , b] = [1, 3, 5].map((i) => parseInt(SCENE.light.head.slice(i, i + 2), 16));
+  assert.ok(r > b + 60, `head ${SCENE.light.head} is not warm`);
+  assert.ok(luma(SCENE.light.head) < luma(SCENE.light.land[0]) - 50, "and still shows on pale land");
+});
+
 test("the light sky is a muted backdrop, darker than the globe it frames", () => {
   const L = SCENE.light;
   assert.ok(luma(L.sky) < luma(L.sea) - 15, "the globe stands out against the sky");

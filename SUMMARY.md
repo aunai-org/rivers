@@ -4,7 +4,7 @@ The idea: countries "inflated" by the length of their longest river. Three piece
 
 | Piece | Where | State |
 | --- | --- | --- |
-| **App** (Three.js globe) | this folder, `src/`, `data/` | Builds, `npm test` passes 34/34. Has **Inflate by river** and **River flow · live** (2026-10-27), and since 2026-10-28 no pin markers: country names on the globe, click a country or a river to filter the rivers. All on branch `feat/inflate-river-flow`. |
+| **App** (Three.js globe) | this folder, `src/`, `data/` | Builds, `npm test` passes 35/35. Has **Inflate by river** and **River flow · live** (2026-10-27), and since 2026-10-28 no pin markers: country names on the globe, click a country or a river to filter the rivers. All on branch `feat/inflate-river-flow`. |
 | **Dashboard** (claude.ai artifact) | `dashboard/` is the saved copy; live at https://claude.ai/artifact/AztfbAsjjDVuPeBHL8UqCp | Published (files/index.html at store version 7). Its automatic check never returned a result, so it has never been confirmed to render without errors. |
 | **Mockup** (liquid-glass design canvas) | `mockup/project/`; live at https://claude.ai/artifact/6GCSGRjNwHAyC8xrecfRHN | Published, 2 artboards (phone, desktop). Not viewed after publish. |
 
@@ -36,7 +36,7 @@ The user asked for: no markers; small country names at the centres; selecting a 
 Later the same day the user said the flow pulses were "very fast for every river" and asked for a light-mode globe:
 - **Pulse speed** (`flowSpeed` in `src/flowmath.ts`): was 160 + 110·log10(q) km/s, so 270–650 everywhere. Now a power law, 40·(q/100)^0.35 clamped to 15–260 km/s, 50 without data: a stream ≈18, 1,000 m³/s ≈90, the giants 260. Checked live: 15 / 87 / 260 km/s (min / median / max).
 - **Namesake rivers split**: the user spotted that the Argentine Colorado was drawn as part of the US one. Natural Earth pieces were grouped by name only. Now pieces of one name more than 15° apart are separate rivers, named by the country most of each lies in: Colorado (United States / Argentina), Negro (Brazil / Argentina), San Juan (Nicaragua / Argentina), and, from a hand list because they are only 12° apart, Grande (Brazil / Bolivia). The Irtysh and Salween have 10–12° gaps in Natural Earth but stay one river each. 335 rivers now. The discharge cache key now includes a hash of the river names, so renamed rivers are fetched fresh.
-- **Light globe** (sun/moon button in the top bar): a muted slate sky (#b4c1cf; the first, near-white sky was "so bright"), pale sea and paper-coloured land, dark-blue rivers blended as ink instead of added as light, no stars, a soft blue rim, brighter flat lighting, and light page colours (`:root[data-theme="light"]` in `src/style.css`). Inflated bands run pale to deep blue. Both palettes live in `SCENE` in `src/theme.ts`. The first visit follows the system setting; a choice is remembered under `river-globe:theme`.
+- **Light globe** (sun/moon button in the top bar): a muted slate sky (#b4c1cf; the first, near-white sky was "so bright"), pale sea and paper-coloured land, dark-blue rivers blended as ink instead of added as light, with pastel-red pulses (navy pulses were invisible), no stars, a soft blue rim, brighter flat lighting, and light page colours (`:root[data-theme="light"]` in `src/style.css`). Inflated bands run pale to deep blue. Both palettes live in `SCENE` in `src/theme.ts`. The first visit follows the system setting; a choice is remembered under `river-globe:theme`.
 
 ### Added 2026-10-27: Inflate by river, and River flow (live)
 
