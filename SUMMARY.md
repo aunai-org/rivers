@@ -4,7 +4,7 @@ The idea: countries "inflated" by the length of their longest river. Three piece
 
 | Piece | Where | State |
 | --- | --- | --- |
-| **App** (Three.js globe) | this folder, `src/`, `data/` | Builds, `npm test` passes 36/36. Has **Inflate by river** and **River flow · live** (2026-10-27), and since 2026-10-28 no pin markers: country names on the globe, click a country or a river to filter the rivers. All on branch `feat/inflate-river-flow`. |
+| **App** (Three.js globe) | this folder, `src/`, `data/` | Builds, `npm test` passes 36/36. Has **Inflate by river** and **River flow · live** (2026-10-27), and since 2026-10-28 no pin markers: country names on the globe, click a country or a river to filter the rivers. Merged into `main` 2026-10-28 and pushed to https://github.com/aunai-org/rivers (the app is now named "Rivers"). |
 | **Dashboard** (claude.ai artifact) | `dashboard/` is the saved copy; live at https://claude.ai/artifact/AztfbAsjjDVuPeBHL8UqCp | Published (files/index.html at store version 7). Its automatic check never returned a result, so it has never been confirmed to render without errors. |
 | **Mockup** (liquid-glass design canvas) | `mockup/project/`; live at https://claude.ai/artifact/6GCSGRjNwHAyC8xrecfRHN | Published, 2 artboards (phone, desktop). Not viewed after publish. |
 

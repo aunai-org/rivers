@@ -35,4 +35,4 @@ Use this folder's `node_modules`. The one in `earth-template` is broken.
 
 ## Open items
 
-See "Good next steps" in `SUMMARY.md`: review the inflate and river-flow views at full speed and merge their branch, try labels and river picking with a real mouse, smaller rivers and real gauges, real data, real photos.
+See "Good next steps" in `SUMMARY.md`: review the inflate and river-flow views at full speed, try labels and river picking with a real mouse, smaller rivers and real gauges, real data, real photos.
