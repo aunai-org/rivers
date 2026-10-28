@@ -29,27 +29,10 @@ export const config = {
   } satisfies Record<"hub" | "item" | "node", KindName>,
 
   /**
-   * What an arc means, in words. Selecting an item draws arcs from its hub to each node it links to.
-   * item: the item's side ("Release screened at 5 festivals"). node: the node's side ("3 releases screened here").
-   * The legend at the bottom reads "release screened at festival" from these, so a visitor never has to guess.
-   */
-  link: { item: "pinned at", node: "pinned here" },
-
-  /**
    * Set to true while the app shows sample data: a "Demo data" badge appears in the top bar and the
    * "Data from …" timestamp is hidden, so nobody mistakes the sample for live data. Remove it (or set false) with real data.
    */
   demo: false,
-
-  /**
-   * Dates on items drive the "recent" window, the Latest list, and the pulse on fresh hubs.
-   * Set `enabled: false` if your items have no dates; those three parts are hidden.
-   */
-  dates: { enabled: false, recentDays: 15, latestDays: 7 },
-
-  /** How many items fan out around a selected hub, and how many rows the Latest list shows. */
-  fanLimit: 12,
-  latestLimit: 50,
 
   /** An open tab quietly checks for newer data this often. */
   refreshMinutes: 30,
@@ -63,7 +46,7 @@ export const config = {
     rows: [
       { label: "Data", html: "Land areas and river lengths in <code>data/rivers.csv</code>. They are approximate, written from memory." },
       { label: "Inflation", html: "A country's share of the total river length divided by its share of the total land area. Above 1 it grows when resized by its river." },
-      { label: "Arcs", html: "An arc joins a river's mouth to the centre of a country it reaches. A shared river counts in full for each country it crosses." },
+      { label: "Select", html: "Click a country's name to see only the rivers that cross it, or click a river to see it alone. A shared river counts in full for each country it crosses." },
       { label: "Map", html: "Natural Earth country outlines, via world-atlas." },
       {
         label: "Inflate",
@@ -84,6 +67,9 @@ export const config = {
   /** The credit in the footer. Leave `href` empty for plain text. */
   credit: { label: "Data", text: "approximate river lengths", href: "" },
 
+  /** The search box: it finds a country or a river and selects it. */
+  search: "Country or river",
+
   /** The View toggles in the Filters panel: the inflated map, and the live river layer. */
   views: {
     label: "View",
@@ -96,6 +82,29 @@ export const config = {
     model: "model",
     loading: "…",
     offline: "no data",
+  },
+
+  /** The card that explains the inflated map while it is on. */
+  inflateCard: {
+    title: "Inflated by river",
+    text: "Each country is redrawn so its area matches the length of its longest river, not its land. Countries that grow have long rivers for their size; countries outside the table shrink to 35%.",
+    note: "Colour = length of the country's longest river. Figures are approximate.",
+  },
+
+  /** The flow legend, shown while rivers are on the globe. */
+  flowCard: {
+    title: "River flow",
+    live: (date: string) => `Today's discharge · GloFAS model · ${date}`,
+    loading: "Loading today's discharge…",
+    offline: "Today's discharge is unavailable; widths follow river size.",
+    off: "Lines only. Turn on River flow · live to size each river by today's water.",
+    how: "Rivers draw out from source to mouth and pulses run downstream. Wider and faster means more water.",
+    scale: [1_000, 10_000, 100_000],
+    all: "Most water today",
+    longest: "Longest rivers",
+    inCountry: (name: string) => `Rivers in ${name}`,
+    river: "Selected river",
+    count: (n: number, of: number) => `${n} of ${of} rivers have a value today. Modelled, not gauged.`,
   },
 
   /** Status and notice wording. */

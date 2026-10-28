@@ -83,6 +83,8 @@ export type RiversAsset = {
     rank: number;
     /** The hub this river is, when it is one of the table's rivers. */
     hub?: string;
+    /** Countries the river crosses, source → mouth, in data/rivers.csv's spelling where the table has them. */
+    countries: string[];
     /** [lat, lng] points near the mouth where today's discharge is sampled. */
     gauges: [lat: number, lng: number][];
     /** Flat [lng, lat, lng, lat, …] real and inflated positions, and km from the line's source at each point. */

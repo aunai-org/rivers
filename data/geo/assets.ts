@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { geoBounds, geoContains } from "d3-geo";
 import { feature, mesh } from "topojson-client";
 import type { FeatureCollection, Geometry, MultiLineString, MultiPolygon, Polygon } from "geojson";
 import type { Topology } from "topojson-specification";
@@ -21,6 +22,8 @@ const json = <T>(path: string): T => JSON.parse(readFileSync(path, "utf8")) as T
 
 /** Country names in data/rivers.csv that world-atlas spells differently. */
 const COUNTRY_ALIAS: Record<string, string> = { "United States": "United States of America", "DR Congo": "Dem. Rep. Congo" };
+/** world-atlas names back to the table's spelling, so the app can match rivers to its countries. */
+const TABLE_NAME = Object.fromEntries(Object.entries(COUNTRY_ALIAS).map(([table, atlas]) => [atlas, table]));
 /** Table rivers whose Natural Earth line has another name. */
 const RIVER_ALIAS: Record<string, string> = {
   "Ob-Irtysh": "Ob",
@@ -68,6 +71,35 @@ function make(): { inflate: InflateAsset; rivers: RiversAsset } {
   const hubOf = new Map<string, string>();
   for (const r of rows) hubOf.set(RIVER_ALIAS[r.river] ?? r.river, slug(r.river));
 
+  // Which countries each river crosses, in order from source to mouth. Two vertices inside a country count as a crossing.
+  const boxes = countries.map((f) => geoBounds(f));
+  const inBox = (i: number, [x, y]: LngLat) => {
+    const [[x0, y0], [x1, y1]] = boxes[i];
+    return y >= y0 && y <= y1 && (x0 <= x1 ? x >= x0 && x <= x1 : x >= x0 || x <= x1);
+  };
+  const crossed = (r: (typeof lines)[number]): string[] => {
+    const first = new Map<string, number>();
+    const hits = new Map<string, number>();
+    let n = 0;
+    for (const line of r.lines) {
+      for (const p of line) {
+        n++;
+        const i = countries.findIndex((f, c) => inBox(c, p) && geoContains(f, p));
+        if (i < 0) continue;
+        const name = TABLE_NAME[countries[i].properties.name] ?? countries[i].properties.name;
+        hits.set(name, (hits.get(name) ?? 0) + 1);
+        if (!first.has(name)) first.set(name, n);
+      }
+    }
+    return [...first].filter(([name]) => hits.get(name)! >= 2).sort((x, y) => x[1] - y[1]).map(([name]) => name);
+  };
+  // The table says which country each of its rivers belongs to, even where a coarse border misses it.
+  const tableCountries = new Map<string, string[]>();
+  for (const r of rows) {
+    const key = RIVER_ALIAS[r.river] ?? r.river;
+    (tableCountries.get(key) ?? tableCountries.set(key, []).get(key)!).push(r.country);
+  }
+
   // Pins and every river vertex ride the cartogram's displacement field.
   const pinKeys: string[] = [];
   const extra: LngLat[] = [];
@@ -96,6 +128,7 @@ function make(): { inflate: InflateAsset; rivers: RiversAsset } {
     km: Math.round(r.km),
     rank: r.rank,
     ...(hubOf.has(r.name) ? { hub: hubOf.get(r.name) } : {}),
+    countries: [...new Set([...crossed(r), ...(tableCountries.get(r.name) ?? [])])],
     gauges: r.gauges.map((g) => [round(g[1]), round(g[0])] as [number, number]),
     lines: r.lines.map((line) => {
       const moved = out.extra.slice(at, (at += line.length));

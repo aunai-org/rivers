@@ -93,3 +93,8 @@ test("falls back to the digitised direction", () => {
   const stem = out[0].lines[0];
   assert.ok(near(stem[stem.length - 1], [-1, 0]), `ends at ${stem[stem.length - 1]}`);
 });
+
+test("canals are not rivers", () => {
+  const out = buildRivers(fc([{ name: "Suez Canal", lines: [run([32, 30], [32, 31])] }, { name: "Nile", lines: [run([31, 25], [31, 30])] }]), [], {});
+  assert.deepEqual(out.map((r) => r.name), ["Nile"]);
+});

@@ -4,25 +4,28 @@ A static Vite + TypeScript page with three.js for the globe. No framework. The b
 
 ```
 build:   data/build.ts ──► dist/data.json                  (vite.config.ts writes it; dev serves it live)
-browser: /data.json ──► useData() ──► render() ──► globe.show(pins, arcs)
-                          │                └─► card, counts, Latest list
+browser: /data.json ──► useData() ──► render() ──► labels.set(), riverFlow.setShown()
+                          │                └─► card, River flow card, status
                           └─ saved copy in localStorage: painted first, replaced when fresh data arrives
 ```
 
 ## What is on the map
 
-`render()` in `src/app.ts` decides, from the selection:
+There are no pin markers. Country names (`src/labels.ts`) sit at each country centre as HTML laid over the canvas: projected every frame, hidden on the far side, and culled where they overlap (the bigger country wins, the selected one always shows). `render()` in `src/app.ts` decides the rest from the selection (`riversShown()` in `src/select.ts`):
 
-| Selected | On the map |
-| --- | --- |
-| Nothing | Hubs, plus every node if "All nodes" is on |
-| A hub | That hub with its newest items ringed around it. Its nodes appear on request in compact layouts, and straight away otherwise |
-| An item | Its hub, and its nodes joined to the hub by arcs |
-| A node | The node, and the hubs it is linked to |
+| Selected | Rivers drawn | Card |
+| --- | --- | --- |
+| Nothing | Every river while River flow is on, none otherwise | none |
+| A country (label or search) | The rivers that cross it | Its table row, river count, the river with most water |
+| A river (its line, a list, or search) | Only that river; the camera frames it | Length, countries crossed source → mouth, flow today |
 
-Everything outside that context is dropped, except that other hubs stay as invisible "ghosts" so that clearing the selection can bring them back where they were.
+A river wins over a country, and closing its card goes back to the country. Selecting loads `/rivers.json` (local) even with River flow off; discharge is fetched only by the River flow switch.
+
+The **River flow card** shows while rivers are drawn: width scale, model and date, the rivers in view by today's flow, and the credit. The **Inflated by river card** shows while the land is inflated: what it means, and the colour key.
 
 ## The globe (`src/globe.ts`)
+
+The marker machinery below comes from the template and is idle here (the app passes no pins). The hooks this app uses are `onFrame` (river layer), `onDraw` (labels, after the camera moves), `probe` (river hover) and `onLayerPick` (river click).
 
 - **Fixed pixel sizes.** Markers keep the same size on screen at every zoom. Pins on the far side of the Earth are hidden and can't be clicked.
 - **Clustering** happens in screen space every frame. Pins that land within a few pixels merge into a numbered badge. One click on a badge zooms in and fans its pins out. Zooming out re-stacks them.
@@ -37,20 +40,20 @@ Everything is procedural, with no image files: a blurred Milky Way texture plus 
 
 ## Inflate by river (`data/geo/`, `src/inflate.ts`)
 
-- **Build time.** `data/geo/assets.ts` runs the cartogram (`data/geo/cartogram.ts`, which is the dashboard's Equal Earth + Dougenik algorithm, 14 iterations) over world-atlas 110m countries. It weights countries by `data/rivers.csv` and squeezes the rest to 35%. Pins and every river vertex are moved by the same displacement field. The output is `/inflate.json`, with real and inflated rings that have the same vertex count, plus the inflated pin positions.
-- **Browser.** `EarthPainter` repaints the 2048×1024 Earth texture at each morph value t, drawing `lerp(real, inflated, t)` in equirectangular. Rings are unwrapped so Russia and Fiji don't streak across the map. Markers keep `home0` and `home1`, and `home` slides between them, so pins, fans, arcs and fly-to all follow the land.
+- **Build time.** `data/geo/assets.ts` runs the cartogram (`data/geo/cartogram.ts`, which is the dashboard's Equal Earth + Dougenik algorithm, 14 iterations) over world-atlas 110m countries. It weights countries by `data/rivers.csv` and squeezes the rest to 35%. Country centres and every river vertex are moved by the same displacement field. The output is `/inflate.json`, with real and inflated rings that have the same vertex count, plus the inflated centre positions.
+- **Browser.** `EarthPainter` repaints the 2048×1024 Earth texture at each morph value t, drawing `lerp(real, inflated, t)` in equirectangular. Rings are unwrapped so Russia and Fiji don't streak across the map. Labels keep their real and inflated positions and slide between them, so they and fly-to follow the land.
 - **Animation.** Inflating takes 2.4 s with an elastic overshoot. Deflating takes 0.9 s with cubic easing. Reduced motion jumps straight to the end.
 
 ## River flow (`data/geo/rivers.ts`, `src/flow.ts`, `src/discharge.ts`)
 
-- **Lines.** These are Natural Earth 50m river and lake centre lines (`data/ne_50m_rivers_lake_centerlines.geojson`). Pieces with the same name are joined, and the longest path becomes the main stem.
+- **Lines.** These are Natural Earth 50m river and lake centre lines (`data/ne_50m_rivers_lake_centerlines.geojson`), canals dropped. Pieces with the same name are joined, and the longest path becomes the main stem. Each river lists the countries it crosses (point-in-polygon on the 110m outlines, plus the table's own river for each country).
 - **Direction rules, in order:**
   1. A known mouth (`MOUTH`).
   2. One end at the sea while the other is well inland.
   3. An end touching the middle of another river.
   4. The length-weighted digitising direction.
   5. The nearer coast.
-- **Drawing.** One merged ribbon mesh draws the rivers. The vertex shader mixes the real and inflated positions and widens the ribbon sideways. The fragment shader reveals rivers from the source at 2,600 km/s and runs comet-shaped pulses toward the mouth. Hover uses a screen-space probe over the river vertices.
+- **Drawing.** One merged ribbon mesh draws the rivers; a per-vertex `lit` attribute hides rivers outside the selection, and a new selection replays the reveal. The vertex shader mixes the real and inflated positions and widens the ribbon sideways. The fragment shader reveals rivers from the source at 2,600 km/s and runs comet-shaped pulses toward the mouth. Hover uses a screen-space probe over the river vertices.
 - **Discharge.** Values come from the Open-Meteo Flood API (GloFAS v4, daily, about 5 km grid, CC BY 4.0).
   - The free tier allows about 600 locations a minute. Rank ≤ 4 rivers are sampled at 2 points near the mouth, the rest at 1, which comes to about 470.
   - After 65 s a second pass retries refused batches. It also re-samples rivers that came back dry, at ±0.05° and ±0.1°, because Natural Earth lines can sit a model cell off the GloFAS channel.

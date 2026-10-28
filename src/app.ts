@@ -1,20 +1,24 @@
-import { Globe, RADIUS, type Arc, type Pin, type Tone } from "./globe";
+import { Globe, RADIUS } from "./globe";
 import { RiverFlow } from "./flow";
 import { fetchDischarge } from "./discharge";
 import { config } from "./config";
 import { INFLATE_URL, RIVERS_URL, type RiversAsset, fetchDataset, readSaved, save, type Dataset, type Fact, type HubRow, type InflateAsset, type ItemRow, type NodeRow } from "./data";
+import { flowWidth } from "./flowmath";
 import { BAND_LABELS, BANDS, bandColour } from "./inflate";
+import { CountryLabels } from "./labels";
 import { LOGO_SVG } from "./logo";
-import { cueClear, cueCluster, cueLand, cueOpen, cuePing, cueSelect, cueTick, initSound, setSound, soundOn } from "./sound";
+import { riversShown } from "./select";
+import { cueClear, cueOpen, cueSelect, cueTick, initSound, setSound, soundOn } from "./sound";
 
 const K = config.kinds;
-const DAY = 86_400_000;
 /** Windows shorter than this fold the side panels when a card opens. */
 const SHORT_PX = 640;
-/** Narrower windows use the compact layout: capped rings, panels folded, the globe centred beside the card. */
+/** Narrower windows use the compact layout: panels folded, the globe centred beside the card. */
 const COMPACT_PX = 1000;
 /** Narrower than this the card is a bottom sheet. */
 const SHEET_PX = 600;
+/** Rows in the flow legend's list, and in a country card's list of rivers. */
+const LIST_ROWS = 8;
 
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector(selector) as T;
 const low = (text: string) => text.toLowerCase();
@@ -23,11 +27,7 @@ const statusEl = $("#status");
 const clockEl = $("#clock");
 const cardEl = $("#card");
 const searchEl = $<HTMLInputElement>("#search");
-const recentEl = $<HTMLButtonElement>("#recent");
-const allEl = $<HTMLButtonElement>("#win-all");
 const refreshEl = $<HTMLButtonElement>("#refresh");
-const latestEl = $("#latest");
-const latestPanel = $<HTMLDetailsElement>(".latest");
 const filtersEl = $<HTMLDetailsElement>(".filters");
 const appEl = $("#app");
 const aboutEl = $("#about");
@@ -35,6 +35,8 @@ const aboutBtn = $<HTMLButtonElement>("#about-btn");
 const soundEl = $<HTMLButtonElement>("#sound");
 const inflateEl = $<HTMLButtonElement>("#view-inflate");
 const flowEl = $<HTMLButtonElement>("#view-flow");
+const inflateCard = $<HTMLDetailsElement>("#inflate-card");
+const flowCard = $<HTMLDetailsElement>("#flow-card");
 
 function setText(selector: string, value: string) {
   const el = document.querySelector(selector);
@@ -56,19 +58,8 @@ function paintChrome() {
   aboutBtn.title = `About ${config.name}`;
   refreshEl.title = config.copy.refreshTitle;
   refreshEl.setAttribute("aria-label", config.copy.refreshTitle);
-  const find = `Find a ${low(K.hub.one)}`;
-  searchEl.placeholder = find;
-  searchEl.setAttribute("aria-label", find);
-  setText("#recent-label", `${config.dates.recentDays} days`);
-  setText("#lbl-hub", K.hub.one);
-  setText("#lbl-item", K.item.one);
-  setText("#lbl-node", `All ${low(K.node.many)}`);
-  setText("#lbl-pulse", `Pulse ≤ ${config.dates.recentDays}d`);
-  setText("#key-hub", K.hub.one);
-  setText("#key-item", K.item.one);
-  setText("#key-node", K.node.one);
-  setText("#key-arc", `${low(K.item.one)} ${config.link.item} ${low(K.node.one)}`);
-  $("#cat-node").title = `Show every ${low(K.node.one)}, not just the ones tied to your selection`;
+  searchEl.placeholder = config.search;
+  searchEl.setAttribute("aria-label", config.search);
 
   const V = config.views;
   setText("#lbl-view", V.label);
@@ -76,6 +67,11 @@ function paintChrome() {
   setText("#lbl-flow", V.flow);
   inflateEl.title = V.inflateTitle;
   flowEl.title = V.flowTitle;
+
+  const I = config.inflateCard;
+  setText("#ic-title", I.title);
+  setText("#ic-text", I.text);
+  setText("#ic-note", I.note);
   const bands = $("#bands");
   const head = document.createElement("span");
   head.textContent = V.bandsLabel;
@@ -87,6 +83,19 @@ function paintChrome() {
     row.append(swatch, label);
     bands.append(row);
   });
+
+  const F = config.flowCard;
+  setText("#fc-title", F.title);
+  setText("#fc-how", F.how);
+  const scale = $("#fc-scale");
+  const widest = flowWidth(F.scale[F.scale.length - 1], 1);
+  for (const q of F.scale) {
+    const row = document.createElement("span");
+    const bar = document.createElement("i");
+    bar.style.height = `${Math.max(1, (flowWidth(q, 1) / widest) * 7).toFixed(1)}px`;
+    row.append(bar, m3s(q));
+    scale.append(row);
+  }
 
   setText("#about-title", config.name);
   setText("#about-blurb", config.about.blurb);
@@ -117,69 +126,56 @@ function paintChrome() {
   } else {
     credit.append(config.credit.text);
   }
-
-  // Without dates there is no recent window, no Latest list, and nothing to pulse.
-  if (!config.dates.enabled) {
-    $("#window").hidden = true;
-    latestPanel.hidden = true;
-    document.querySelector<HTMLElement>('[data-cat="pulse"]')!.hidden = true;
-  }
 }
+
+const m3s = (q: number) => `${Math.round(q).toLocaleString("en-US")} m³/s`;
+const kms = (km: number) => `${km.toLocaleString("en-US")} km`;
+
 paintChrome();
 initSound(config.id);
 
 // Small screens start with the side panels folded, so the globe is what you see first.
-if (window.innerHeight < SHORT_PX || window.innerWidth < COMPACT_PX) {
-  latestPanel.open = false;
-  filtersEl.open = false;
+if (window.innerHeight < SHORT_PX || window.innerWidth < COMPACT_PX) filtersEl.open = false;
+if (window.innerWidth < SHEET_PX) {
+  inflateCard.open = false;
+  flowCard.open = false;
 }
 
 // ---- State ---------------------------------------------------------------------------------------------------------
 
 let hubs: HubRow[] = [];
-let items: ItemRow[] = [];
 let nodes: NodeRow[] = [];
-let hubById = new Map<string, HubRow>();
-let itemById = new Map<string, ItemRow>();
 let nodeById = new Map<string, NodeRow>();
-let nodesByItem = new Map<string, string[]>();
-let itemsByNode = new Map<string, string[]>();
+/** A country's row in the table (its land, longest river and inflation), by its centre's id. */
+let itemByNode = new Map<string, ItemRow>();
 
-let query = "";
-let recentOnly = false;
-let hubId: string | null = null;
-let itemId: string | null = null;
-let nodeId: string | null = null;
+/** The selected country (a country centre's id) and river (a river line's name). A river wins over a country. */
+let countryId: string | null = null;
+let riverName: string | null = null;
 let updatedAt = "";
 let notice = "";
-/** Compact screens: a hub shows its nodes only after its card link asks for them. */
-let revealFor: string | null = null;
 /** The land is (or is turning) inflated by river. */
 let inflated = false;
 /** The inflated outlines and pin positions, loaded the first time the view is turned on. */
 let shapes: InflateAsset | null = null;
-/** The river layer is on; its lines load the first time. */
+/** The live River flow view is on: today's discharge is fetched and sizes the rivers. */
 let flowing = false;
+/** River lines, loaded the first time rivers are needed (the flow view, or a selection). */
 let rivers: RiversAsset | null = null;
-
-type Category = "hub" | "item" | "node" | "pulse";
-const show: Record<Category, boolean> = { hub: true, item: true, node: false, pulse: config.dates.enabled };
+let flowState = "";
 
 function useData(data: Dataset) {
   hubs = data.hubs;
-  // Newest first, so lists and rings show the latest.
-  items = [...data.items].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
   nodes = data.nodes;
   updatedAt = data.updatedAt ?? "";
-  hubById = new Map(hubs.map((row) => [row.id, row]));
-  itemById = new Map(items.map((row) => [row.id, row]));
   nodeById = new Map(nodes.map((row) => [row.id, row]));
-  nodesByItem = new Map();
-  itemsByNode = new Map();
+  const itemById = new Map(data.items.map((row) => [row.id, row]));
+  itemByNode = new Map();
   for (const link of data.links) {
-    (nodesByItem.get(link.item) ?? nodesByItem.set(link.item, []).get(link.item)!).push(link.node);
-    (itemsByNode.get(link.node) ?? itemsByNode.set(link.node, []).get(link.node)!).push(link.item);
+    const item = itemById.get(link.item);
+    if (item && !itemByNode.has(link.node)) itemByNode.set(link.node, item);
   }
+  paintSearchList();
 }
 
 // ---- Data helpers --------------------------------------------------------------------------------------------------
@@ -187,54 +183,34 @@ function useData(data: Dataset) {
 const spot = (row: { lat?: number; lng?: number }) =>
   typeof row.lat === "number" && typeof row.lng === "number" ? { lat: row.lat, lng: row.lng } : null;
 
-function age(date?: string): number {
-  if (!date) return NaN;
-  const time = Date.parse(`${date}T00:00:00Z`);
-  return Number.isFinite(time) ? Date.now() - time : NaN;
-}
+const factOf = (facts: Fact[] | undefined, label: string) => facts?.find(([name]) => name === label)?.[1];
 
-function within(item: ItemRow, days: number): boolean {
-  if (!config.dates.enabled) return false;
-  const ms = age(item.date);
-  return ms >= 0 && ms <= days * DAY;
-}
-
-const recent = (item: ItemRow) => within(item, config.dates.recentDays);
-
-function ago(date: string): string {
-  const days = Math.floor(age(date) / DAY);
-  return days <= 0 ? "today" : days === 1 ? "1 day ago" : `${days} days ago`;
-}
-
-const dateLine = (item: ItemRow) => (!item.date ? "No date" : recent(item) ? `${item.date} · ${ago(item.date)}` : item.date);
-
-function hubItems(id: string): ItemRow[] {
-  return items.filter((item) => item.hub === id && (!recentOnly || recent(item)));
-}
-
-function nodesFor(id: string): NodeRow[] {
-  return (nodesByItem.get(id) ?? []).map((nodeKey) => nodeById.get(nodeKey)).filter((row): row is NodeRow => !!row);
-}
-
-function nodesServing(list: ItemRow[]): NodeRow[] {
-  const ids = new Set<string>();
-  for (const item of list) for (const nodeKey of nodesByItem.get(item.id) ?? []) ids.add(nodeKey);
-  return [...ids].map((nodeKey) => nodeById.get(nodeKey)).filter((row): row is NodeRow => !!row);
-}
-
-/** Where a pin sits when the land is inflated, if the inflated map knows it. */
-function altOf(kind: "hub" | "node", id: string) {
-  const at = shapes?.points[`${kind}:${id}`];
+/** Where a country's centre sits when the land is inflated, if the inflated map knows it. */
+function altOf(id: string) {
+  const at = shapes?.points[`node:${id}`];
   return at ? { lat: at[0], lng: at[1] } : undefined;
 }
 
-/** Where to turn the camera for a pin: its inflated position while the land is inflated. */
-function aim(kind: "hub" | "node", row: HubRow | NodeRow | undefined) {
+/** Where to turn the camera for a country: its inflated centre while the land is inflated. */
+function aim(row: NodeRow | undefined) {
   const place = row ? spot(row) : null;
-  return place && inflated ? (altOf(kind, row!.id) ?? place) : place;
+  return place && inflated ? (altOf(row!.id) ?? place) : place;
 }
 
 const clock = (date: Date) => date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+const riverByName = (name: string | null) => (name && rivers?.rivers.find((r) => r.name === name)) || null;
+
+/** The selected country's rivers, the selected river, or every river; most water first, else longest first. */
+function listedRivers(): RiversAsset["rivers"] {
+  if (!rivers) return [];
+  const shown = riversShown(rivers.rivers, { country: countryName() });
+  const list = shown ? rivers.rivers.filter((_, i) => shown.has(i)) : rivers.rivers;
+  const q = (name: string) => riverFlow.flowOf(name)?.q ?? -1;
+  return [...list].sort((a, b) => q(b.name) - q(a.name) || b.km - a.km);
+}
+
+const countryName = () => (countryId ? (nodeById.get(countryId)?.name ?? null) : null);
 
 // ---- The globe -----------------------------------------------------------------------------------------------------
 
@@ -245,239 +221,163 @@ const globe = new Globe($("#globe"), {
     item: { name: [low(K.item.one), low(K.item.many)] },
     node: { name: [low(K.node.one), low(K.node.many)] },
   },
-  onPick: (id, kind) => {
-    if (kind === "hub") {
-      hubId = id;
-      itemId = null;
-      nodeId = null;
-      const place = aim("hub", hubById.get(id));
-      if (place) globe.focus(place.lat, place.lng);
-      cueOpen();
-    } else if (kind === "item") {
-      itemId = id;
-      nodeId = null;
-      cueSelect();
-    } else {
-      nodeId = id;
-      cuePing();
-      const place = aim("node", nodeById.get(id));
-      if (place) globe.focus(place.lat, place.lng);
-    }
-    render();
-  },
+  // There are no markers on this globe: countries are picked by their labels, rivers by their lines.
+  onPick: () => {},
   onEmpty: () => {
     // Clicking empty globe drops the selection and closes the card.
-    if (!hubId && !itemId && !nodeId) return;
-    revealFor = null;
+    if (!countryId && !riverName) return;
     cueClear();
-    hubId = null;
-    itemId = null;
-    nodeId = null;
+    countryId = null;
+    riverName = null;
     render();
   },
 });
-globe.onArcLand = cueLand;
+
+// Country names, at each country's centre. They slide with the land when it inflates.
+const labels = new CountryLabels($("#globe"), (id) => pickCountry(id));
 
 // The river layer: drawn over the globe, following the land's morph.
 const riverFlow = new RiverFlow(RADIUS, window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 globe.addLayer(riverFlow.mesh);
 globe.onFrame = (now, t) => riverFlow.update(now, t, globe.cameraDistance);
-const m3s = (q: number) => `${Math.round(q).toLocaleString("en-US")} m³/s`;
+globe.onDraw = (camera, width, height, t) => labels.update(camera, width, height, t);
 globe.probe = (x, y, camera, width, height) => {
   const hit = riverFlow.hit(x, y, camera, width, height, globe.inflation);
   if (!hit) return null;
-  const today = hit.flow ? `${m3s(hit.flow.q)} on ${hit.flow.date}` : config.views.offline;
+  const today = hit.flow ? `${m3s(hit.flow.q)} on ${hit.flow.date}` : flowing ? config.views.offline : "";
   return `${hit.name}
-${hit.km.toLocaleString("en-US")} km · ${today}`;
+${[kms(hit.km), today].filter(Boolean).join(" · ")}`;
 };
-if (import.meta.env.DEV) Object.assign(window as object, { __globe: globe, __flow: riverFlow });
-globe.onClusterOpen = cueCluster;
+globe.onLayerPick = (x, y, camera, width, height) => {
+  const hit = riverFlow.hit(x, y, camera, width, height, globe.inflation);
+  if (!hit) return false;
+  // A river outside the selected country's rivers can't be hit (it isn't drawn), so the country stays selected.
+  pickRiver(hit.name);
+  return true;
+};
+if (import.meta.env.DEV) Object.assign(window as object, { __globe: globe, __flow: riverFlow, __labels: labels });
 
-function pickItem(item: ItemRow) {
+function pickCountry(id: string) {
+  if (!nodeById.has(id)) return;
   cueSelect();
-  hubId = item.hub;
-  itemId = item.id;
-  nodeId = null;
-  const place = aim("hub", hubById.get(item.hub));
+  countryId = id;
+  riverName = null;
+  const place = aim(nodeById.get(id));
   if (place) globe.focus(place.lat, place.lng);
+  render();
+  void needRivers();
+}
+
+function pickRiver(name: string) {
+  cueOpen();
+  riverName = name;
+  // A river from another country's list leaves that country behind.
+  const country = countryName();
+  const river = riverByName(name);
+  if (country && river && !river.countries.includes(country)) countryId = null;
+  if (river) frameRiver(river);
   render();
 }
 
-/** Turn and zoom the globe so a hub and its mapped nodes are all in view. */
-function frameNodes(hub: HubRow, mapped: NodeRow[]) {
-  const spots = [aim("hub", hub), ...mapped.map((row) => aim("node", row))].filter((s): s is NonNullable<typeof s> => s !== null);
+/** Turn and zoom the globe so a whole river is in view. */
+function frameRiver(river: RiversAsset["rivers"][number]) {
+  const spots: { lat: number; lng: number }[] = [];
+  for (const line of river.lines) {
+    const flat = inflated ? line.inflated : line.real;
+    const step = Math.max(2, Math.floor(flat.length / 40) * 2);
+    for (let i = 0; i < flat.length; i += step) spots.push({ lat: flat[i + 1], lng: flat[i] });
+  }
   globe.frame(spots);
 }
 
+/** Load the river lines once; until they arrive a selection shows its card but no rivers. */
+let riversLoading: Promise<RiversAsset> | null = null;
+async function needRivers(): Promise<RiversAsset | null> {
+  if (rivers) return rivers;
+  riversLoading ??= fetch(RIVERS_URL).then((res) => {
+    if (!res.ok) throw new Error(`rivers request failed: ${res.status}`);
+    return res.json() as Promise<RiversAsset>;
+  });
+  try {
+    rivers = await riversLoading;
+  } catch {
+    riversLoading = null;
+    return null;
+  }
+  riverFlow.setData(rivers);
+  paintSearchList();
+  render();
+  return rivers;
+}
+
 /**
- * Context decides what is on the map:
- * nothing selected → hubs (plus every node when "All nodes" is on);
- * hub → nodes linked to its items; item → its nodes, joined to the hub by arcs;
- * node → the hubs it is linked to. Everything outside the context is dimmed or hidden.
+ * Everything on screen follows the selection: the labels, which rivers are drawn, the card, and the flow legend.
+ * Nothing selected → every river (while River flow is on). A country → the rivers that cross it. A river → only it.
  */
 function render() {
-  const q = query.trim().toLowerCase();
-  const shownHubs = hubs.filter((hub) => {
-    if (q && !low(hub.name).includes(q) && !low(hub.id).includes(q)) return false;
-    if (recentOnly && !hubItems(hub.id).length) return false;
-    return spot(hub) !== null;
-  });
-  const visible = shownHubs.flatMap((hub) => hubItems(hub.id));
-  const openHub = (hubId && hubById.get(hubId)) || null;
-  const openItem = (itemId && itemById.get(itemId)) || null;
-  const openNode = (nodeId && nodeById.get(nodeId)) || null;
-  const itemNodes = openItem ? nodesFor(openItem.id) : [];
+  labels.set(
+    nodes.flatMap((row) => {
+      const place = spot(row);
+      if (!place) return [];
+      const item = itemByNode.get(row.id);
+      const area = Number((factOf(item?.facts, "Land area") ?? "0").replace(/\D/g, ""));
+      // While the land is inflated each label also names the river that sized its country.
+      const sub = inflated ? factOf(item?.facts, "Longest river") : undefined;
+      return [{ id: row.id, text: row.name, sub, ...place, alt: altOf(row.id), weight: area }];
+    }),
+  );
+  labels.select(countryId);
 
-  let relatedHubs: Set<string> | null = null;
-  let relatedNodes: NodeRow[] = [];
-  if (openItem) {
-    relatedHubs = new Set([openItem.hub]);
-    relatedNodes = itemNodes;
-  } else if (openNode) {
-    const linked = new Set(itemsByNode.get(openNode.id) ?? []);
-    relatedHubs = new Set(visible.filter((item) => linked.has(item.id)).map((item) => item.hub));
-    relatedNodes = [openNode];
-  } else if (openHub) {
-    relatedHubs = new Set([openHub.id]);
-    relatedNodes = !compact() || revealFor === openHub.id ? nodesServing(hubItems(openHub.id)) : [];
-  }
-  const selecting = relatedHubs !== null;
+  const selecting = !!(countryId || riverName);
+  if (rivers) riverFlow.setShown(riversShown(rivers.rivers, { country: countryName(), river: riverName }));
+  riverFlow.setVisible(!!rivers && (flowing || selecting));
 
-  const pins: Pin[] = [];
-  for (const hub of show.hub ? shownHubs : []) {
-    const place = spot(hub);
-    if (!place) continue;
-    const focus = hub.id === hubId && !itemId && !nodeId;
-    const tone: Tone = focus ? "focus" : !selecting || relatedHubs?.has(hub.id) ? "related" : "dim";
-    pins.push({
-      id: hub.id,
-      kind: "hub",
-      label: hub.name,
-      anchor: hub.id === hubId && !nodeId,
-      // Other hubs step off the map while something is selected; clearing the selection brings them back.
-      ghost: tone === "dim",
-      tone,
-      lat: place.lat,
-      lng: place.lng,
-      alt: altOf("hub", hub.id),
-      ripple: show.pulse && (focus || (tone !== "dim" && hubItems(hub.id).some(recent))),
-    });
-  }
-
-  const pinned = new Map(relatedNodes.map((row) => [row.id, row]));
-  if (show.node) for (const row of nodesServing(visible)) if (!pinned.has(row.id)) pinned.set(row.id, row);
-  const relatedNodeIds = new Set(relatedNodes.map((row) => row.id));
-  const arcs: Arc[] = [];
-  for (const row of pinned.values()) {
-    const place = spot(row);
-    if (!place) continue;
-    const tone: Tone = row.id === nodeId ? "focus" : !selecting || relatedNodeIds.has(row.id) ? "related" : "dim";
-    if (tone === "dim") continue;
-    pins.push({
-      id: row.id,
-      kind: "node",
-      label: row.name,
-      anchor: row.id === nodeId,
-      tone,
-      lat: place.lat,
-      lng: place.lng,
-      alt: altOf("node", row.id),
-      ripple: show.pulse && tone === "focus",
-    });
-    if (openItem && relatedNodeIds.has(row.id)) {
-      arcs.push({ from: { kind: "hub", id: openItem.hub }, to: { kind: "node", id: row.id } });
-    }
-  }
-
-  const hubHome = openHub ? spot(openHub) : null;
-  const spawned = hubHome && show.item ? hubItems(openHub!.id).slice(0, config.fanLimit) : [];
-  // An older selected item still gets a place in the ring.
-  if (openItem && spawned.length && openItem.hub === openHub?.id && !spawned.includes(openItem)) {
-    spawned[spawned.length - 1] = openItem;
-  }
-  spawned.forEach((item, index) => {
-    const tone: Tone = item.id === itemId ? (nodeId ? "related" : "focus") : itemId ? "dim" : "related";
-    pins.push({
-      id: item.id,
-      kind: "item",
-      label: item.name,
-      tone,
-      lat: hubHome!.lat,
-      lng: hubHome!.lng,
-      alt: altOf("hub", item.hub),
-      fan: { index, count: spawned.length, hub: item.hub },
-      ripple: show.pulse && tone === "focus",
-    });
-  });
-
-  globe.show(pins, arcs);
-  paintCard(openHub, openItem, itemNodes, openNode);
-  paintCounts(shownHubs, [...pinned.values()]);
-  paintLatest(q);
+  paintCard();
+  paintFlowCard();
+  paintStatus();
   fitPanels();
 }
 
-// ---- Lists and counts ----------------------------------------------------------------------------------------------
-
-function paintCounts(shownHubs: HubRow[], pinnedNodes: NodeRow[]) {
-  const fresh = items.filter(recent).length;
-  setText("#count-all", String(items.length));
-  setText("#count-recent", String(fresh));
-  setText("#count-hub", String(shownHubs.length));
-  setText("#count-item", String(recentOnly ? fresh : items.length));
-  setText("#count-node", String(pinnedNodes.filter((row) => spot(row)).length));
-  setText("#count-pulse", String(fresh));
+function paintStatus() {
   if (!clockHold) clockEl.textContent = stampText();
+  const riverCount = rivers?.rivers.length ?? hubs.length;
   if (!globe.ready) statusEl.textContent = config.copy.noWebGL;
   else if (notice) statusEl.textContent = notice;
-  else statusEl.textContent = `${hubs.length} ${low(K.hub.many)} · ${items.length} ${low(K.item.many)} · ${nodes.length} ${low(K.node.many)}`;
+  else statusEl.textContent = `${nodes.length} ${low(K.item.many)} · ${riverCount} ${low(K.hub.many)}`;
 }
 
-/** Latest lists recent items: `latestDays` by default, `recentDays` when the recent window is on. */
-function paintLatest(q: string) {
-  if (!config.dates.enabled) return;
-  const days = recentOnly ? config.dates.recentDays : config.dates.latestDays;
-  const rows = (show.item ? items : [])
-    .filter((item) => item.date && within(item, days))
-    .filter((item) => !q || low(item.hub).includes(q) || low(hubById.get(item.hub)?.name ?? "").includes(q))
-    .slice(0, config.latestLimit);
-  setText("#latest-count", String(rows.length));
-  setText("#latest-window", `${days} days`);
-  latestEl.replaceChildren();
-  if (!rows.length) {
-    const li = document.createElement("li");
-    li.className = "empty";
-    li.textContent = show.item ? `Nothing in the last ${days} days.` : `${K.item.many} are hidden.`;
-    latestEl.append(li);
+/** The search box suggests every country and river; choosing one selects it. */
+function paintSearchList() {
+  const names = [...nodes.map((row) => row.name), ...(rivers?.rivers.map((r) => r.name) ?? hubs.map((row) => row.name))];
+  $("#search-list").replaceChildren(
+    ...[...new Set(names)].map((name) => {
+      const option = document.createElement("option");
+      option.value = name;
+      return option;
+    }),
+  );
+}
+
+async function find(text: string) {
+  const q = low(text.trim());
+  if (!q) return;
+  const country = nodes.find((row) => low(row.name) === q) ?? nodes.find((row) => low(row.name).startsWith(q));
+  if (country) {
+    pickCountry(country.id);
     return;
   }
-  for (const item of rows) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.classList.toggle("on", item.id === itemId);
-    const name = document.createElement("span");
-    name.className = "name";
-    name.textContent = item.name;
-    const by = document.createElement("span");
-    by.className = "by";
-    by.textContent = hubById.get(item.hub)?.name ?? item.hub;
-    const date = document.createElement("span");
-    date.className = "date";
-    date.textContent = dateLine(item);
-    button.append(name, by, date);
-    button.addEventListener("click", () => pickItem(item));
-    const li = document.createElement("li");
-    li.append(button);
-    latestEl.append(li);
-  }
+  const all = await needRivers();
+  const river = all?.rivers.find((r) => low(r.name) === q) ?? all?.rivers.find((r) => low(r.name).startsWith(q));
+  if (river) pickRiver(river.name);
 }
 
 // ---- The card ------------------------------------------------------------------------------------------------------
 
-/** The rows on a card come from the data (`facts`), with a few computed ones for counts and links. */
-function paintCard(hub: HubRow | null, item: ItemRow | null, itemNodes: NodeRow[], openNode: NodeRow | null) {
-  const node = item ? (itemNodes.find((row) => row.id === nodeId) ?? null) : openNode;
-  cardEl.hidden = !hub && !item && !node;
+/** A river's card when one is selected, else the selected country's card. */
+function paintCard() {
+  const river = riverByName(riverName);
+  const country = countryId ? (nodeById.get(countryId) ?? null) : null;
+  cardEl.hidden = !river && !country;
   if (cardEl.hidden) return;
   const body = $("#card-body");
   body.replaceChildren();
@@ -485,56 +385,45 @@ function paintCard(hub: HubRow | null, item: ItemRow | null, itemNodes: NodeRow[
     setText("#card-id", label.toUpperCase());
     setText("#card-sub", `inspect ${low(label)} ${id}`);
   };
-  const extra = (facts?: Fact[]) => facts?.forEach(([label, value, href]) => addFact(body, label, value, href));
 
-  if (node) {
-    const linked = (itemsByNode.get(node.id) ?? []).map((key) => itemById.get(key)).filter((row): row is ItemRow => !!row);
-    const owners = [...new Set(linked.map((row) => hubById.get(row.hub)?.name).filter(Boolean))];
-    kind(K.node.one, node.id);
-    setText("#card-name", node.name);
-    setText("#card-when", `${linked.length} ${low(linked.length === 1 ? K.item.one : K.item.many)} ${config.link.node}`);
-    if (item) addFact(body, "For", item.name);
-    addFact(body, K.hub.many, owners.join(" · ") || "—");
-    addFact(body, "Place", node.place ?? "No pin");
-    extra(node.facts);
-  } else if (item && hub) {
-    const mapped = itemNodes.filter((row) => spot(row));
-    const summary = `${itemNodes.length} · ${mapped.length} on map`;
-    kind(K.item.one, item.id);
-    setText("#card-name", item.name);
-    setText("#card-when", dateLine(item));
-    addFact(body, K.hub.one, hub.name);
-    const arcLabel = config.link.item[0].toUpperCase() + config.link.item.slice(1);
-    if (mapped.length) addFact(body, arcLabel, summary, () => frameNodes(hub, mapped));
-    else addFact(body, arcLabel, summary);
-    extra(item.facts);
-  } else if (hub) {
-    const own = hubItems(hub.id);
-    const fresh = own.filter(recent).length;
-    const served = nodesServing(own);
-    const mapped = served.filter((row) => spot(row));
-    const summary = `${served.length} · ${mapped.length} on map`;
-    kind(K.hub.one, hub.id);
-    setText("#card-name", hub.name);
-    setText("#card-when", `${own.length} ${low(own.length === 1 ? K.item.one : K.item.many)}${fresh ? ` · ${fresh} in ${config.dates.recentDays} days` : ""}`);
-    addFact(body, "Place", hub.place ?? "No pin");
-    const line = rivers?.rivers.find((r) => r.hub === hub.id);
-    const flow = line ? riverFlow.flowOf(line.name) : undefined;
+  if (river) {
+    const hub = river.hub ? hubs.find((row) => row.id === river.hub) : undefined;
+    kind(K.hub.one, river.hub ?? low(river.name).replace(/\W+/g, "-"));
+    setText("#card-name", river.name);
+    setText("#card-when", `${kms(river.km)} mapped · ${river.countries.length} ${low(river.countries.length === 1 ? K.item.one : K.item.many)}`);
+    const length = factOf(hub?.facts, "Length");
+    if (length) addFact(body, "Length", `${length} (table)`);
+    addFact(body, "Crosses", river.countries.join(" → ") || "—");
+    const flow = riverFlow.flowOf(river.name);
     if (flow) {
-      addFact(body, "Flow today", m3s(flow.q));
+      addFact(body, "Flow today", `${m3s(flow.q)} · ${flow.date}`);
       addFact(body, "Flow source", "GloFAS model · Open-Meteo", "https://open-meteo.com/en/docs/flood-api");
-    }
-    if (mapped.length) {
-      addFact(body, K.node.many, summary, () => {
-        revealFor = hub.id;
-        render();
-        frameNodes(hub, mapped);
-      });
+    } else if (!flowing) {
+      addFact(body, "Flow today", `Turn on ${config.views.flow}`, () => flowEl.click());
     } else {
-      addFact(body, K.node.many, summary);
+      addFact(body, "Flow today", flowState === config.views.live ? config.views.offline : config.views.loading);
     }
-    extra(hub.facts);
+    if (country) addFact(body, K.item.one, country.name, () => {
+      riverName = null;
+      cueClear();
+      render();
+    });
+    return;
   }
+
+  const item = itemByNode.get(country!.id);
+  kind(K.item.one, country!.id);
+  setText("#card-name", country!.name);
+  setText("#card-when", factOf(item?.facts, "Longest river") ?? "");
+  for (const [label, value, href] of item?.facts ?? []) if (label !== "Longest river") addFact(body, label, value, href);
+  if (!rivers) {
+    addFact(body, K.hub.many, config.views.loading);
+    return;
+  }
+  // The rivers themselves are listed, with today's flow, in the River flow card.
+  const own = listedRivers();
+  addFact(body, `${K.hub.many} here`, String(own.length));
+  if (own[0]) addFact(body, riverFlow.flowOf(own[0].name) ? "Most water" : "Longest", own[0].name, () => pickRiver(own[0].name));
 }
 
 function addFact(root: HTMLElement, label: string, value: string, target?: string | (() => void)) {
@@ -566,24 +455,79 @@ function addFact(root: HTMLElement, label: string, value: string, target?: strin
   root.append(row);
 }
 
+// ---- The side cards ------------------------------------------------------------------------------------------------
+
+/** The flow legend: what width and pulses mean, where today's numbers come from, and the rivers in view by flow. */
+function paintFlowCard() {
+  flowCard.hidden = !riverFlow.visible;
+  if (flowCard.hidden) return;
+  const F = config.flowCard;
+  const flows = riverFlow.allFlows;
+  const date = flows.values().next().value?.date ?? "";
+  const live = flowing && flowState === config.views.live && flows.size > 0;
+  setText("#fc-badge", flowing ? flowState : "");
+  setText("#fc-state", !flowing ? F.off : live ? F.live(date) : flowState === config.views.offline ? F.offline : F.loading);
+  $("#fc-scale").hidden = !live;
+
+  const river = riverByName(riverName);
+  const list = river ? [river] : listedRivers();
+  const name = countryName();
+  setText("#fc-list-label", river ? F.river : name ? F.inCountry(name) : live ? F.all : F.longest);
+  $("#fc-list").replaceChildren(
+    ...list.slice(0, LIST_ROWS).map((r) => {
+      const q = riverFlow.flowOf(r.name)?.q;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.classList.toggle("on", r.name === riverName);
+      const label = document.createElement("span");
+      label.textContent = r.name;
+      const value = document.createElement("b");
+      value.textContent = q ? m3s(q) : kms(r.km);
+      button.append(label, value);
+      button.addEventListener("click", () => pickRiver(r.name));
+      const li = document.createElement("li");
+      li.append(button);
+      return li;
+    }),
+  );
+
+  const source = $("#fc-source");
+  source.replaceChildren();
+  if (flowing) {
+    const counted = list.filter((r) => flows.has(r.name)).length;
+    const link = document.createElement("a");
+    link.href = "https://open-meteo.com/en/docs/flood-api";
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Open-Meteo Flood API";
+    const licence = document.createElement("a");
+    licence.href = "https://creativecommons.org/licenses/by/4.0/";
+    licence.target = "_blank";
+    licence.rel = "noopener noreferrer";
+    licence.textContent = "CC BY 4.0";
+    source.append(`${F.count(counted, list.length)} `, link, " · ", licence);
+  }
+}
+
+function paintInflateCard() {
+  inflateCard.hidden = !inflated;
+}
+
 // ---- Responsive layout ---------------------------------------------------------------------------------------------
 
 const compact = () => window.innerWidth < COMPACT_PX;
 const sheet = () => window.innerWidth < SHEET_PX;
 
 /**
- * Short or narrow windows can't fit the card and both panels. When a selection opens the card there,
- * fold the side panels; the person can still reopen them.
+ * Short or narrow windows can't fit the card and every panel. When a selection opens the card there,
+ * fold the panels; the person can still reopen them.
  */
 let lastCard = "";
 function fitPanels() {
   const tight = window.innerHeight < SHORT_PX || compact();
-  const card = cardEl.hidden ? "" : `${hubId}|${itemId}|${nodeId}`;
+  const card = cardEl.hidden ? "" : `${countryId}|${riverName}`;
   appEl.dataset.card = card ? "open" : "closed";
-  if (tight && card && card !== lastCard) {
-    filtersEl.open = false;
-    latestPanel.open = false;
-  }
+  if (tight && card && card !== lastCard) filtersEl.open = false;
   lastCard = card;
   capCard();
   placeGlobe();
@@ -656,46 +600,9 @@ async function load(options: { quiet?: boolean; force?: boolean } = {}) {
 
 // ---- Controls ------------------------------------------------------------------------------------------------------
 
-function setWindow(onlyRecent: boolean) {
-  recentOnly = onlyRecent;
-  recentEl.setAttribute("aria-pressed", String(recentOnly));
-  recentEl.classList.toggle("on", recentOnly);
-  allEl.setAttribute("aria-pressed", String(!recentOnly));
-  allEl.classList.toggle("on", !recentOnly);
-  if (hubId && !hubItems(hubId).length) {
-    hubId = null;
-    itemId = null;
-    nodeId = null;
-  }
-  render();
-}
-
-searchEl.addEventListener("input", () => {
-  query = searchEl.value;
-  render();
-});
-document.querySelectorAll<HTMLButtonElement>(".legend button[data-cat]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const cat = button.dataset.cat as Category;
-    show[cat] = !show[cat];
-    cueTick();
-    button.classList.toggle("on", show[cat]);
-    button.setAttribute("aria-pressed", String(show[cat]));
-    // Drop selections that the hidden category would leave dangling.
-    if (!show.item) {
-      itemId = null;
-      nodeId = null;
-    }
-    render();
-  });
-});
-recentEl.addEventListener("click", () => {
-  cueTick();
-  setWindow(true);
-});
-allEl.addEventListener("click", () => {
-  cueTick();
-  setWindow(false);
+searchEl.addEventListener("change", () => void find(searchEl.value));
+searchEl.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") void find(searchEl.value);
 });
 refreshEl.addEventListener("click", () => {
   cueTick();
@@ -704,9 +611,8 @@ refreshEl.addEventListener("click", () => {
 document.querySelectorAll(".panel summary").forEach((summary) => summary.addEventListener("click", cueTick));
 $("#card-close").addEventListener("click", () => {
   cueClear();
-  if (nodeId) nodeId = null;
-  else if (itemId) itemId = null;
-  else hubId = null;
+  if (riverName) riverName = null;
+  else countryId = null;
   render();
 });
 
@@ -747,7 +653,7 @@ paintSound();
 function paintViews() {
   inflateEl.classList.toggle("on", inflated);
   inflateEl.setAttribute("aria-pressed", String(inflated));
-  $("#bands").hidden = !inflated;
+  paintInflateCard();
 }
 
 let shapesLoading: Promise<InflateAsset> | null = null;
@@ -779,54 +685,58 @@ inflateEl.addEventListener("click", async () => {
   }
   inflated = on;
   paintViews();
-  // Pins learn their inflated homes before the morph starts, so they slide with the land.
+  // Labels learn their inflated homes before the morph starts, so they slide with the land.
   render();
   globe.setInflation(inflated);
 });
 
-function paintFlow(state: string) {
+function paintFlow() {
   flowEl.classList.toggle("on", flowing);
   flowEl.setAttribute("aria-pressed", String(flowing));
-  setText("#state-flow", flowing ? state : "");
+  setText("#state-flow", flowing ? flowState : "");
 }
 
-let flowState = "";
+/** Today's discharge is fetched once, the first time the view is turned on; it is the page's only outside request. */
+let dischargeAsked = false;
 flowEl.addEventListener("click", async () => {
   cueTick();
   flowing = !flowing;
   if (flowing && !rivers) {
     flowEl.setAttribute("aria-busy", "true");
-    paintFlow(config.views.loading);
-    try {
-      const res = await fetch(RIVERS_URL);
-      if (!res.ok) throw new Error(`rivers request failed: ${res.status}`);
-      rivers = (await res.json()) as RiversAsset;
-      riverFlow.setData(rivers);
-    } catch {
+    flowState = config.views.loading;
+    paintFlow();
+    const ok = await needRivers();
+    flowEl.removeAttribute("aria-busy");
+    if (!ok) {
       flowing = false;
-      flowEl.removeAttribute("aria-busy");
-      paintFlow("");
+      flowState = "";
+      paintFlow();
       setText("#state-flow", config.views.offline);
       return;
     }
-    flowEl.removeAttribute("aria-busy");
+  }
+  if (flowing && rivers && !dischargeAsked) {
+    dischargeAsked = true;
     // Live discharge loads behind the drawing; the rivers flow at a rank-based pace until it arrives.
     flowState = config.views.loading;
     fetchDischarge(rivers.rivers, `${config.id}:flow`, (part) => {
       riverFlow.setFlows(part);
       flowState = config.views.live;
-      paintFlow(flowState);
+      paintFlow();
+      render();
     })
       .then((flows) => {
         riverFlow.setFlows(flows);
         flowState = config.views.live;
-        render();
       })
       .catch(() => (flowState = config.views.offline))
-      .finally(() => paintFlow(flowState));
+      .finally(() => {
+        paintFlow();
+        render();
+      });
   }
-  riverFlow.setVisible(flowing);
-  paintFlow(flowState);
+  paintFlow();
+  render();
 });
 
 filtersEl.addEventListener("toggle", capCard);

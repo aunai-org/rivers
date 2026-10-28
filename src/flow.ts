@@ -20,13 +20,16 @@ const VERTEX = /* glsl */ `
   attribute float dist;
   attribute float width;
   attribute float speed;
+  attribute float lit;
   uniform float uT;
   uniform float uRadius;
   uniform float uZoom;
   varying float vDist;
   varying float vSide;
   varying float vSpeed;
+  varying float vLit;
   void main() {
+    vLit = lit;
     vec3 at = normalize(mix(p0, p1, uT)) * uRadius;
     vec3 off = normalize(mix(o0, o1, uT));
     vec3 pos = at + off * side * width * uZoom;
@@ -48,8 +51,9 @@ const FRAGMENT = /* glsl */ `
   varying float vDist;
   varying float vSide;
   varying float vSpeed;
+  varying float vLit;
   void main() {
-    if (vDist > uReveal) discard;
+    if (vLit < 0.5 || vDist > uReveal) discard;
     // A soft edge across the ribbon.
     float edge = 1.0 - smoothstep(0.35, 1.0, abs(vSide));
     // Comet-shaped pulses: a faint tail upstream, a bright head downstream, all moving toward the mouth.
@@ -65,7 +69,7 @@ const FRAGMENT = /* glsl */ `
   }
 `;
 
-type Hit = { name: string; km: number; flow?: Flow };
+type Hit = { name: string; km: number; countries: string[]; flow?: Flow };
 
 /** The world's rivers as glowing ribbons, flowing source → mouth, sized and paced by today's discharge. */
 export class RiverFlow {
@@ -76,6 +80,8 @@ export class RiverFlow {
   /** Sample points for hover: [river index, x, y, z] in real and inflated positions. */
   private probes: { river: number; a: THREE.Vector3; b: THREE.Vector3 }[] = [];
   private shown = false;
+  /** The rivers drawn: null for all, or a set of indices (a selected river, or a selected country's rivers). */
+  private only: Set<number> | null = null;
   private revealStart = 0;
   private longest = 0;
   private scratch = new THREE.Vector3();
@@ -125,6 +131,7 @@ export class RiverFlow {
     geometry.setAttribute("dist", new THREE.BufferAttribute(r.dist, 1));
     geometry.setAttribute("width", new THREE.BufferAttribute(new Float32Array(r.side.length), 1));
     geometry.setAttribute("speed", new THREE.BufferAttribute(new Float32Array(r.side.length), 1));
+    geometry.setAttribute("lit", new THREE.BufferAttribute(new Float32Array(r.side.length).fill(1), 1));
     geometry.setIndex(new THREE.BufferAttribute(r.index, 1));
     this.mesh.geometry = geometry;
     this.riverOf = r.river;
@@ -138,6 +145,7 @@ export class RiverFlow {
       }
     });
     this.paintFlows();
+    this.paintShown();
   }
 
   /** Today's discharge by river name; rivers without a usable value keep their rank-based look. */
@@ -149,6 +157,23 @@ export class RiverFlow {
 
   flowOf(name: string): Flow | undefined {
     return this.flows.get(name);
+  }
+
+  /** Every usable discharge value, by river name. */
+  get allFlows(): ReadonlyMap<string, Flow> {
+    return this.flows;
+  }
+
+  /**
+   * Draw only these rivers (null: all). A new filter replays the reveal, so the chosen rivers draw out from their
+   * sources again; the same filter again changes nothing.
+   */
+  setShown(only: Set<number> | null) {
+    const same = only === this.only || (!!only && !!this.only && only.size === this.only.size && [...only].every((i) => this.only!.has(i)));
+    if (same) return;
+    this.only = only;
+    this.paintShown();
+    this.revealStart = performance.now();
   }
 
   setVisible(on: boolean) {
@@ -176,6 +201,7 @@ export class RiverFlow {
     let best = px * px;
     let found = -1;
     for (const probe of this.probes) {
+      if (this.only && !this.only.has(probe.river)) continue;
       const p = this.scratch.copy(probe.a).lerp(probe.b, t).setLength(this.radius);
       if (p.dot(cam) - horizon <= 0) continue;
       p.project(camera);
@@ -189,7 +215,14 @@ export class RiverFlow {
     }
     if (found < 0) return null;
     const river = this.rivers[found];
-    return { name: river.name, km: river.km, flow: this.flows.get(river.name) };
+    return { name: river.name, km: river.km, countries: river.countries, flow: this.flows.get(river.name) };
+  }
+
+  private paintShown() {
+    const lit = this.mesh.geometry.getAttribute("lit") as THREE.BufferAttribute | undefined;
+    if (!lit) return;
+    for (let v = 0; v < this.riverOf.length; v++) lit.setX(v, !this.only || this.only.has(this.riverOf[v]) ? 1 : 0);
+    lit.needsUpdate = true;
   }
 
   private paintFlows() {

@@ -31,6 +31,15 @@ test("Egypt grows and Russia shrinks when inflated", async () => {
   assert.ok(total("Russia", "inflated") < total("Russia", "real") * 0.7);
 });
 
+test("rivers list the countries they cross, in the table's spelling", async () => {
+  const { rivers } = await buildAssets();
+  const crosses = (name: string) => rivers.rivers.find((r) => r.name === name)?.countries ?? [];
+  assert.ok(crosses("Nile").includes("Egypt") && crosses("Nile").includes("Sudan"), `Nile: ${crosses("Nile")}`);
+  assert.ok(crosses("Amazon").includes("Brazil"), `Amazon: ${crosses("Amazon")}`);
+  assert.ok(crosses("Mississippi").includes("United States"), `Mississippi: ${crosses("Mississippi")}`);
+  assert.ok(!crosses("Nile").includes("Brazil"));
+});
+
 test("pins have inflated positions", async () => {
   const { inflate } = await buildAssets();
   assert.ok(inflate.points["hub:nile"], "hub:nile");

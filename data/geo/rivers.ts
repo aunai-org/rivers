@@ -195,7 +195,8 @@ export function buildRivers(fc: FeatureCollection<Geometry>, coast: LngLat[], mo
   for (const f of fc.features) {
     const props = (f.properties ?? {}) as { name?: string; name_en?: string; scalerank?: number };
     const name = (props.name_en || props.name || "").replace(/\s+/g, " ").trim();
-    if (!name || !f.geometry) continue;
+    // Natural Earth files some canals (Suez, Ismailiya) as rivers; they have no source or mouth to flow between.
+    if (!name || !f.geometry || /\bcanal\b/i.test(name)) continue;
     const parts =
       f.geometry.type === "LineString" ? [f.geometry.coordinates] : f.geometry.type === "MultiLineString" ? f.geometry.coordinates : [];
     const entry = byName.get(name) ?? byName.set(name, { rank: Infinity, lines: [] }).get(name)!;

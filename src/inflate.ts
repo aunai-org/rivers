@@ -13,15 +13,15 @@ const H = 1024;
 /** River-length bands for the inflated colours, km. Same bands as the dashboard. */
 export const BANDS = [1000, 2000, 3500, 5000];
 export const BAND_LABELS = ["< 1,000 km", "1,000–2,000", "2,000–3,500", "3,500–5,000", "5,000 km +"];
-/** How much of the band colour each band gets over the land grey. */
-const BAND_MIX = [0.22, 0.4, 0.6, 0.8, 1];
+/** One colour per band, dark navy for short rivers up to bright blue for the longest, so each band reads apart. */
+const BAND_HEX = ["#22344d", "#1f4f8f", "#2667c9", "#3b82f6", "#7db8ff"];
 
 const rgb = (css: string) => [1, 3, 5].map((i) => parseInt(css.slice(i, i + 2), 16));
 const mix = (a: number[], b: number[], k: number) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
 const css = (c: number[]) => `rgb(${c[0]},${c[1]},${c[2]})`;
 
 export const bandOf = (km: number) => BANDS.filter((b) => km >= b).length;
-const bandRgb = (km: number) => mix(rgb(THEME.earth.land[3]), rgb(THEME.river), BAND_MIX[bandOf(km)]);
+const bandRgb = (km: number) => rgb(BAND_HEX[bandOf(km)]);
 /** The colour a table country takes when fully inflated. */
 export const bandColour = (km: number): string => css(bandRgb(km));
 

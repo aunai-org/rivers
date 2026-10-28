@@ -47,11 +47,8 @@
 
       <details class="panel filters" open>
         <summary>Filters</summary>
-        <input id="search" type="search" autocomplete="off">
-        <div class="seg" id="window" role="group" aria-label="Recent window">
-          <button id="win-all" type="button" class="on" aria-pressed="true"><span>All</span><b id="count-all">0</b></button>
-          <button id="recent" type="button" aria-pressed="false"><span id="recent-label"></span><b id="count-recent">0</b></button>
-        </div>
+        <input id="search" type="search" autocomplete="off" list="search-list">
+        <datalist id="search-list"></datalist>
         <p class="group-label" id="lbl-view"></p>
         <div class="legend views" role="group" aria-labelledby="lbl-view">
           <button type="button" id="view-inflate" class="inflate" aria-pressed="false">
@@ -63,33 +60,27 @@
             <span id="lbl-flow"></span><b id="state-flow"></b>
           </button>
         </div>
-        <div class="bands" id="bands" hidden></div>
-        <p class="group-label">Show</p>
-        <div class="legend" role="group" aria-label="Categories">
-          <button type="button" data-cat="hub" class="on" aria-pressed="true">
-            <svg class="mark" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .8 10.5 3.4v5.2L6 11.2 1.5 8.6V3.4Z" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="4.3" r="1.1" fill="currentColor"/><circle cx="4.2" cy="7.4" r="1.1" fill="currentColor"/><circle cx="7.8" cy="7.4" r="1.1" fill="currentColor"/></svg>
-            <span id="lbl-hub"></span><b id="count-hub">0</b>
-          </button>
-          <button type="button" data-cat="item" class="on" aria-pressed="true">
-            <svg class="mark" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.2 10.8 6 6 10.8 1.2 6Z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
-            <span id="lbl-item"></span><b id="count-item">0</b>
-          </button>
-          <button type="button" data-cat="node" class="node" aria-pressed="false" id="cat-node">
-            <svg class="mark" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="6" r="1.4" fill="currentColor"/></svg>
-            <span id="lbl-node"></span><b id="count-node">0</b>
-          </button>
-          <button type="button" data-cat="pulse" class="on pulse" aria-pressed="true">
-            <svg class="mark" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.8" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".5"/><circle cx="6" cy="6" r="2.4" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
-            <span id="lbl-pulse"></span><b id="count-pulse">0</b>
-          </button>
-        </div>
         <p class="meta" id="status"></p>
       </details>
 
-      <details class="panel latest" open>
-        <summary>Latest <small id="latest-window"></small><b id="latest-count">0</b></summary>
-        <ol id="latest"></ol>
-      </details>
+      <!-- Right side: what the inflated map means, and the flow legend. Each shows while its view is on. -->
+      <div class="side">
+        <details class="panel info" id="inflate-card" open hidden>
+          <summary id="ic-title"></summary>
+          <p id="ic-text"></p>
+          <div class="bands" id="bands"></div>
+          <p class="note" id="ic-note"></p>
+        </details>
+        <details class="panel info" id="flow-card" open hidden>
+          <summary><span id="fc-title"></span><b id="fc-badge"></b></summary>
+          <p class="note" id="fc-state"></p>
+          <div class="scale" id="fc-scale"></div>
+          <p id="fc-how"></p>
+          <p class="group-label" id="fc-list-label"></p>
+          <ol class="flows" id="fc-list"></ol>
+          <p class="note" id="fc-source"></p>
+        </details>
+      </div>
 
       <section class="about" id="about" hidden aria-labelledby="about-title">
         <button id="about-close" class="close" type="button" aria-label="Close">×</button>
@@ -101,13 +92,7 @@
       </section>
 
       <footer class="hint">
-        <span class="key" aria-label="Legend">
-          <span><svg class="mark" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .8 10.5 3.4v5.2L6 11.2 1.5 8.6V3.4Z" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="4.3" r="1.1" fill="currentColor"/><circle cx="4.2" cy="7.4" r="1.1" fill="currentColor"/><circle cx="7.8" cy="7.4" r="1.1" fill="currentColor"/></svg><span id="key-hub"></span></span>
-          <span><svg class="mark" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.2 10.8 6 6 10.8 1.2 6Z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg><span id="key-item"></span></span>
-          <span class="node"><svg class="mark" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="6" r="1.4" fill="currentColor"/></svg><span id="key-node"></span></span>
-          <span class="arc"><svg class="mark" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 9.5C3 1.5 9 1.5 11 9.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg><span id="key-arc"></span></span>
-        </span>
-        <span class="how">Drag to rotate · Scroll to zoom</span>
+        <span class="how">Drag to rotate · Scroll to zoom · Click a country or a river</span>
         <span class="credit" id="credit"></span>
       </footer>
     </div>

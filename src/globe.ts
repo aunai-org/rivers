@@ -194,6 +194,10 @@ export class Globe {
   onFrame?: (now: number, t: number) => void;
   /** Hover text for something drawn by a layer (a river), given a point in canvas pixels; markers win over it. */
   probe?: (x: number, y: number, camera: THREE.Camera, width: number, height: number) => string | null;
+  /** A click that hit no marker, offered to a layer first (a river); return true if the layer took it. */
+  onLayerPick?: (x: number, y: number, camera: THREE.Camera, width: number, height: number) => boolean;
+  /** Called just before each frame is drawn, after the camera has moved, for HTML laid over the globe. */
+  onDraw?: (camera: THREE.Camera, width: number, height: number, t: number) => void;
 
   constructor(private root: HTMLElement, options: GlobeOptions) {
     this.onPick = options.onPick;
@@ -281,6 +285,7 @@ export class Globe {
       this.controls?.update();
       this.layout(now / 1000);
       this.hoverTip();
+      this.onDraw?.(this.camera, this.renderer?.domElement.clientWidth ?? 1, this.renderer?.domElement.clientHeight ?? 1, this.morph.t);
       this.renderer?.render(this.scene, this.camera);
     };
     loop();
@@ -636,6 +641,7 @@ export class Globe {
     if (!hit && this.probe) {
       const box = this.renderer.domElement.getBoundingClientRect();
       label = this.probe(this.hover[0] - box.left, this.hover[1] - box.top, this.camera, box.width, box.height) ?? "";
+      if (label) this.renderer.domElement.style.cursor = "pointer";
     }
     if (!label) {
       this.tip.hidden = true;
@@ -768,6 +774,8 @@ export class Globe {
     if (Math.hypot(event.clientX - this.down[0], event.clientY - this.down[1]) > 8) return;
     const hit = this.hitAt(event.clientX, event.clientY);
     if (!hit) {
+      const box = this.renderer.domElement.getBoundingClientRect();
+      if (this.onLayerPick?.(event.clientX - box.left, event.clientY - box.top, this.camera, box.width, box.height)) return;
       // A click on the globe or space (not a drag) clears the selection.
       this.onEmpty();
       return;
