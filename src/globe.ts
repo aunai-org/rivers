@@ -227,7 +227,8 @@ export class Globe {
     this.controls.enablePan = false;
     this.controls.rotateSpeed = 0.45;
     this.controls.zoomSpeed = 0.55;
-    this.controls.minDistance = 3.1;
+    // Close enough to follow one river through its valley: about one globe radius above the surface (was 3.1).
+    this.controls.minDistance = 2.5;
     this.controls.maxDistance = 9;
     this.controls.addEventListener("start", () => {
       this.flight = null;
@@ -439,7 +440,7 @@ export class Globe {
     if (center.lengthSq() < 1e-6) center.copy(dirs[0]);
     center.normalize();
     const spread = Math.max(...dirs.map((dir) => dir.angleTo(center)));
-    const min = this.controls?.minDistance ?? 3.1;
+    const min = this.controls?.minDistance ?? 2.5;
     const max = this.controls?.maxDistance ?? 9;
     const distance = Math.min(max, Math.max(min, RADIUS + 2.2 + spread * 5.5));
     const { lat, lng } = toLatLng(center);
@@ -812,7 +813,7 @@ export class Globe {
   /** Zoom toward a cluster; once zoom can't split it, fan its pins out in place. */
   private openCluster(center: THREE.Vector3, ids: string[]) {
     const dist = this.camera.position.length();
-    const min = this.controls?.minDistance ?? 3.1;
+    const min = this.controls?.minDistance ?? 2.5;
     const { lat, lng } = toLatLng(center);
     this.onClusterOpen?.();
     // One click: zoom in and fan the group out together.

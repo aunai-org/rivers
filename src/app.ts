@@ -8,7 +8,7 @@ import { BAND_LABELS, BANDS, bandColour } from "./inflate";
 import { CountryLabels } from "./labels";
 import { LOGO_SVG } from "./logo";
 import { riversShown } from "./select";
-import { cueClear, cueOpen, cueSelect, cueTick, initSound, setSound, soundOn } from "./sound";
+import { cueClear, cueInflate, cueOpen, cueSelect, cueTick, initSound, setSound, soundOn } from "./sound";
 import { initialMode, type Mode } from "./theme";
 
 const K = config.kinds;
@@ -733,6 +733,7 @@ inflateEl.addEventListener("click", async () => {
   // Labels learn their inflated homes before the morph starts, so they slide with the land.
   render();
   globe.setInflation(inflated);
+  cueInflate(inflated);
 });
 
 function paintFlow() {

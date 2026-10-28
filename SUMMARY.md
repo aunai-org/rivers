@@ -38,6 +38,12 @@ Later the same day the user said the flow pulses were "very fast for every river
 - **Namesake rivers split**: the user spotted that the Argentine Colorado was drawn as part of the US one. Natural Earth pieces were grouped by name only. Now pieces of one name more than 15° apart are separate rivers, named by the country most of each lies in: Colorado (United States / Argentina), Negro (Brazil / Argentina), San Juan (Nicaragua / Argentina), and, from a hand list because they are only 12° apart, Grande (Brazil / Bolivia). The Irtysh and Salween have 10–12° gaps in Natural Earth but stay one river each. 335 rivers now. The discharge cache key now includes a hash of the river names, so renamed rivers are fetched fresh.
 - **Light globe** (sun/moon button in the top bar): a muted slate sky (#b4c1cf; the first, near-white sky was "so bright"), pale sea and paper-coloured land, dark-blue rivers blended as ink instead of added as light, with pastel-red pulses (navy pulses were invisible), no stars, a soft blue rim, brighter flat lighting, and light page colours (`:root[data-theme="light"]` in `src/style.css`). Inflated bands use a five-colour scale (light: yellow, green, teal, blue, purple; dark: purple, blue, teal, green, gold). Both palettes live in `SCENE` in `src/theme.ts`. The first visit follows the system setting; a choice is remembered under `river-globe:theme`.
 
+### Changed 2026-10-28 (evening): sound, zoom, Cloudflare
+
+- **Inflate sound** (`cueInflate` in `src/sound.ts`): a rising swell with a sweeping whoosh over the 2.4 s morph; deflating plays it falling over 0.9 s. Only with sound on. Not listened to by Claude (no audio in the test browser); checked only that it throws no errors.
+- **Closer zoom**: `minDistance` 3.1 → 2.5, about one globe radius above the surface.
+- **Cloudflare**: `wrangler.jsonc` serves `dist/` as Workers static assets; `npm run deploy` builds and deploys. Checked with `wrangler dev`: the CSP from `public/_headers` is applied, live flow loads from Open-Meteo, no console errors. `wrangler deploy --dry-run` passes. Not deployed yet: it needs `npx wrangler login` on the user's Cloudflare account.
+
 ### Added 2026-10-27: Inflate by river, and River flow (live)
 
 Spec `docs/superpowers/specs/2026-10-27-inflate-and-river-flow-design.md`, plan `docs/superpowers/plans/2026-10-27-inflate-and-river-flow.md`, how it works in `docs/ARCHITECTURE.md`.

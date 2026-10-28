@@ -138,3 +138,45 @@ export function cueClear() {
 export function cueTick() {
   play((ac, t) => tone(ac, t, 1500, "sine", 0.04, 0.03));
 }
+
+/**
+ * The land inflating by river: a low swell that rises like a filling breath, with a soft whoosh, over about the
+ * 2.4 s the morph takes. Deflating plays it falling and shorter (0.9 s).
+ */
+export function cueInflate(on: boolean) {
+  play((ac, t) => {
+    const dur = on ? 2.2 : 0.9;
+    const [from, to] = on ? [70, 190] : [190, 70];
+    const out = ac.createGain();
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(0.09, t + dur * 0.35);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    out.connect(ac.destination);
+    // Two slightly detuned sines make the swell; a fifth above gives it some shimmer.
+    for (const [mul, amp] of [[1, 1], [1.006, 0.7], [1.5, 0.25]] as const) {
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(from * mul, t);
+      osc.frequency.exponentialRampToValueAtTime(to * mul, t + dur);
+      g.gain.value = amp;
+      osc.connect(g).connect(out);
+      osc.start(t);
+      osc.stop(t + dur + 0.05);
+    }
+    // A band-passed hiss that sweeps with the land, like air moving.
+    const src = ac.createBufferSource();
+    src.buffer = noise(ac);
+    src.loop = true;
+    const bp = ac.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.Q.value = 1.2;
+    bp.frequency.setValueAtTime(on ? 300 : 1400, t);
+    bp.frequency.exponentialRampToValueAtTime(on ? 1400 : 300, t + dur);
+    const ng = ac.createGain();
+    ng.gain.value = 0.25;
+    src.connect(bp).connect(ng).connect(out);
+    src.start(t);
+    src.stop(t + dur + 0.05);
+  });
+}

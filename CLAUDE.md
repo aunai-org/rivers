@@ -18,6 +18,7 @@ npm install
 npm run dev     # PORT=5180 to pick a port
 npm test        # node --test over data/**/*.test.ts and src/**/*.test.ts
 npm run build   # tsc --noEmit, then vite build
+npm run deploy  # build, then wrangler deploy to Cloudflare (needs `npx wrangler login`)
 ```
 
 Use this folder's `node_modules`. The one in `earth-template` is broken.

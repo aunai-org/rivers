@@ -31,4 +31,15 @@ npm test        # node --test: cartogram, river chaining and direction, assets, 
 npm run build
 ```
 
+## Deploy to Cloudflare
+
+The site is static: `npm run build` writes `dist/`, and Cloudflare Workers serves it as static assets (`wrangler.jsonc`).
+
+```bash
+npx wrangler login      # once
+npm run deploy          # build, then wrangler deploy
+```
+
+`public/_headers` travels with the build and sets the Content Security Policy. It allows connections to the site itself and to `https://flood-api.open-meteo.com` only. River flow is fetched by each visitor's browser, so there is no server, API key or secret. Open-Meteo's free API is for non-commercial use and asks for attribution (CC BY 4.0), which the River flow card and the About panel carry.
+
 The template's own notes are in `docs/`. Licensed MIT (see `LICENSE`).
