@@ -16,9 +16,44 @@
   --accent: #f5a04a;
   --link: #8fe3a8;
   --node: #9ecbff;
+  --river: #3b82f6;
+  --label-bg: rgba(0, 0, 0, 0.42);
+  --label-ink: rgba(228, 231, 234, 0.86);
+  --label-halo: #000;
+  --label-sub: #cfe6ff;
+  --label-hover: #fff;
+  --label-off: rgba(228, 231, 234, 0.45);
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 12px;
 }
+
+/* The light globe (src/theme.ts SCENE.light): pale paper map, dark ink, the same amber accent. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #b4c1cf;
+  --ink: #1f262e;
+  --title: #0f3d24;
+  --muted: #3d4650;
+  --faint: #6f7a86;
+  --line: rgba(15, 23, 32, 0.16);
+  --panel: rgba(250, 251, 252, 0.9);
+  --row: rgba(15, 23, 32, 0.05);
+  --accent: #c76a12;
+  --link: #19713a;
+  --node: #1f5fbf;
+  --river: #1f5fbf;
+  --label-bg: rgba(255, 255, 255, 0.62);
+  --label-ink: rgba(31, 38, 46, 0.88);
+  --label-halo: #fff;
+  --label-sub: #1f5fbf;
+  --label-hover: #000;
+  --label-off: rgba(31, 38, 46, 0.45);
+}
+
+/* The theme button shows where it will take you: a sun on the dark globe, a moon on the light one. */
+#theme .moon { display: none; }
+:root[data-theme="light"] #theme .sun { display: none; }
+:root[data-theme="light"] #theme .moon { display: inline; }
 
 * { box-sizing: border-box; }
 html, body, #app { margin: 0; height: 100%; background: var(--bg); color: var(--ink); overflow: hidden; }
@@ -154,27 +189,92 @@ button { cursor: pointer; }
 .legend button.on b { color: var(--muted); }
 .legend button.on.node .mark { color: var(--node); }
 .legend button.on.pulse .mark { color: var(--accent); }
+/* View toggles: on/off reads from the colour, not a strike-through. */
+.views { margin-bottom: 8px; }
+.views button span { text-decoration: none; }
+.views button { color: var(--muted); }
+.views button.on.inflate .mark { color: var(--river); }
+.views button.on.flow .mark { color: var(--node); }
+.views button.on b { color: var(--accent); }
+.views button[aria-busy="true"] b { color: var(--muted); }
+.bands { display: grid; gap: 3px; margin: -4px 0 10px; padding: 0 6px; color: var(--muted); font-size: 10px; }
+.bands span { display: flex; align-items: center; gap: 6px; }
+.bands i { width: 9px; height: 9px; border-radius: 2px; flex: none; }
 .mark { width: 12px; height: 12px; flex: none; }
 .meta { margin: 8px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
 
-/* Latest list */
-.latest { right: 16px; bottom: 36px; width: 240px; max-height: calc(100vh - 100px); display: flex; flex-direction: column; }
-.latest ol { list-style: none; margin: 0; padding: 0; overflow: auto; max-height: calc(100vh - 150px); scrollbar-width: none; }
-.latest ol::-webkit-scrollbar { width: 0; height: 0; }
-.latest li button {
-  display: block;
+/* Right side: the inflate explainer and the flow legend, stacked under the top bar. */
+.side {
+  position: fixed;
+  z-index: 2;
+  top: 58px;
+  right: 16px;
+  width: 250px;
+  max-height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+  scrollbar-width: none;
+}
+.side::-webkit-scrollbar { width: 0; height: 0; }
+.side .panel { position: static; }
+.info p { margin: 0 0 8px; color: var(--ink); font-size: 11px; line-height: 1.5; }
+.info .note { color: var(--muted); font-size: 10px; }
+.info .note:empty { display: none; }
+.info .note:last-child { margin-bottom: 0; }
+.info .note a { color: var(--muted); text-underline-offset: 3px; }
+.info .note a:hover { color: var(--ink); }
+.info .bands { margin: 0 0 8px; padding: 0; }
+.info .bands span:first-child { color: var(--faint); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; }
+.info .group-label { margin-top: 4px; }
+/* Flow legend: line widths for three discharges, then the rivers in view. */
+.scale { display: grid; gap: 4px; margin: 0 0 8px; color: var(--muted); font-size: 10px; }
+.scale span { display: flex; align-items: center; gap: 8px; }
+.scale i { width: 34px; border-radius: 4px; background: linear-gradient(90deg, var(--river), var(--node)); flex: none; }
+.flows { list-style: none; margin: 0 0 8px; padding: 0; }
+.flows button {
+  display: flex;
   width: 100%;
-  text-align: left;
-  padding: 7px 6px;
+  gap: 8px;
+  padding: 4px 6px;
   border: 0;
   border-radius: 4px;
   background: transparent;
+  font-size: 11px;
+  text-align: left;
 }
-.latest li button:hover, .latest li button.on { background: var(--row); }
-.latest .name { display: block; color: var(--title); font-weight: 500; font-size: 11px; line-height: 1.35; }
-.latest .by { display: block; color: var(--muted); font-size: 10px; margin-top: 2px; }
-.latest .date { display: block; color: var(--accent); font-size: 10px; margin-top: 2px; }
-.latest .empty { color: var(--muted); font-size: 11px; padding: 4px 6px; }
+.flows button:hover, .flows button.on { background: var(--row); }
+.flows button span { color: var(--title); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flows button b { margin-left: auto; font-weight: 400; color: var(--node); white-space: nowrap; }
+
+/* Country names over the globe. The layer lets drags through; only the names themselves take clicks. */
+.labels { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+.label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  justify-items: center;
+  padding: 1px 3px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--label-bg);
+  color: var(--label-ink);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  line-height: 1.25;
+  text-transform: uppercase;
+  text-shadow: 0 0 3px var(--label-halo), 0 0 6px var(--label-halo);
+  white-space: nowrap;
+  pointer-events: auto;
+  will-change: transform;
+}
+.label small { color: var(--label-sub); font-size: 8px; letter-spacing: 0.02em; text-transform: none; }
+.label small:empty { display: none; }
+.label:hover { color: var(--label-hover); }
+.label.off { color: var(--label-off); }
+.label.on { color: var(--accent); font-weight: 600; font-size: 10px; }
 
 /* Detail card: terminal readout */
 .card {
@@ -247,12 +347,6 @@ button { cursor: pointer; }
   white-space: nowrap;
   pointer-events: none;
 }
-.hint .key { display: flex; gap: 10px; color: var(--muted); }
-.hint .key span { display: inline-flex; align-items: center; gap: 5px; }
-.hint .key .mark { width: 10px; height: 10px; }
-.hint .key .node { color: var(--node); }
-.hint .key .arc { color: var(--node); }
-.hint .key .arc .mark { width: 12px; }
 .hint .credit a { pointer-events: auto; color: var(--muted); text-underline-offset: 3px; }
 .hint .credit a:hover { color: var(--ink); }
 
@@ -280,7 +374,7 @@ button { cursor: pointer; }
 .about .disclaimer { margin: 0; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
 
 @media (max-width: 1000px) {
-  .latest { width: 210px; }
+  .side { width: 220px; }
   .filters { width: 180px; }
 }
 
@@ -313,7 +407,7 @@ button { cursor: pointer; }
   .legend button { padding: 3px 6px; }
   .seg { margin: 6px 0; }
   .hint { display: none; }
-  .filters, .latest { bottom: 16px; }
+  .filters { bottom: 16px; }
 }
 
 /* Boot: nothing but the brand until the catalog arrives, then the UI fades in. */
@@ -335,14 +429,13 @@ button { cursor: pointer; }
 .boot small { color: var(--muted); font-size: 10px; font-weight: 400; letter-spacing: 0.08em; }
 @keyframes breathe { 50% { opacity: 0.5; transform: scale(0.92); } }
 #app[data-state="ready"] .boot { opacity: 0; visibility: hidden; }
-.panel, .card, .hint, .topbar-right { transition: opacity 0.4s ease; }
-#app[data-state="loading"] :is(.panel, .card, .hint, .topbar-right) { opacity: 0; pointer-events: none; }
+.panel, .card, .hint, .topbar-right, .labels { transition: opacity 0.4s ease; }
+#app[data-state="loading"] :is(.panel, .card, .hint, .topbar-right, .labels) { opacity: 0; pointer-events: none; }
 
 /* Phones: panels share the bottom edge, and the card is a bottom sheet that hides them while open. */
 @media (max-width: 600px) {
-  .filters, .latest { bottom: 30px; width: calc(50vw - 22px); }
-  .filters { left: 16px; }
-  .latest { right: 16px; }
+  .filters { bottom: 30px; width: calc(50vw - 22px); left: 16px; }
+  .side { top: auto; bottom: 30px; width: calc(50vw - 22px); max-height: 50vh; }
   .card {
     top: auto;
     left: 0;
@@ -353,7 +446,7 @@ button { cursor: pointer; }
     border-radius: 12px 12px 0 0;
     border-bottom: 0;
   }
-  #app[data-card="open"] :is(.panel, .hint) { display: none; }
+  #app[data-card="open"] :is(.panel, .side, .hint) { display: none; }
 }
 
 /* Sound toggle: waves when on, a cross when off. */
@@ -362,22 +455,15 @@ button { cursor: pointer; }
 #sound[aria-pressed="true"] .mute { display: none; }
 #sound[aria-pressed="true"] { color: var(--accent); border-color: rgba(245, 160, 74, 0.5); }
 
-/* The legend matters most on first use; keep it when space is short, drop the how-to text first. */
-@media (max-height: 640px) {
-  .hint { display: flex; }
-  .hint .how { display: none; }
-}
 @media (max-width: 760px) {
   .hint .how { display: none; }
 }
-/* Phones: the bottom belongs to the panels and the sheet, so the legend sits under the logo. */
+/* Phones: the bottom belongs to the panels and the sheet. */
 @media (max-width: 600px) {
-  .hint { top: 58px; bottom: auto; left: 16px; transform: none; gap: 4px 12px; flex-wrap: wrap; max-width: calc(100vw - 132px); }
-  .hint .key { flex-wrap: wrap; gap: 4px 10px; }
+  .hint { display: none; }
   .clock { display: none; }
   /* No room in the top bar on a phone, so the badge sits at the right edge of the legend row. */
   .demo-badge { position: fixed; top: 56px; right: 16px; z-index: 3; }
-  #app[data-card="open"] .hint { display: flex; }
   .about { top: auto; bottom: 0; right: 0; left: 0; width: 100%; max-height: 60vh; border-radius: 12px 12px 0 0; }
 }
 

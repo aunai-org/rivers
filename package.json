@@ -10,7 +10,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "notices": "node scripts/notices.mjs",
-    "media": "node scripts/capture-media.mjs"
+    "media": "node scripts/capture-media.mjs",
+    "test": "node --test \"data/**/*.test.ts\" \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.5",
