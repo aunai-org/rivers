@@ -1,4 +1,6 @@
-# River Globe
+# Rivers
+
+![The world's rivers on a night globe, with live flow](docs/images/dark-flow.jpg)
 
 An interactive Earth of the world's longest rivers and the countries they cross, built from the aunai-org `earth-template`.
 
@@ -12,6 +14,14 @@ Two views sit at the top of the Filters panel:
 - **River flow · live**: 335 Natural Earth rivers draw out from source to mouth, and pulses run downstream. Width and pace follow today's modelled discharge from the Open-Meteo Flood API (GloFAS). A legend card shows the width scale and the rivers in view by today's flow. This is the only time the page contacts another site.
 - **Light or dark globe**: the sun/moon button switches between a night globe among the stars and a pale paper map with dark-blue rivers. The first visit follows the system setting.
 
+![Inflate by river: countries grow or shrink to match their longest river](docs/images/inflate.gif)
+
+*Inflate by river, light globe. Colour shows the length of each country's longest river.*
+
+![Brazil selected: only the rivers that cross it are drawn](docs/images/light-brazil.jpg)
+
+*Click a country to see only its rivers; the card gives its figures.*
+
 ## Run it
 
 ```bash
@@ -20,10 +30,5 @@ npm run dev     # first request for /inflate.json builds the cartogram (a few se
 npm test        # node --test: cartogram, river chaining and direction, assets, ribbon maths
 npm run build
 ```
-
-## Also in this folder
-
-- `dashboard/` — the "Rivers Inflate Countries" dashboard page, its data, and the bundled world outlines.
-- `mockup/` — the River Glass liquid-glass mockup (phone and desktop screens).
 
 The template's own notes are in `docs/`. Licensed MIT (see `LICENSE`).

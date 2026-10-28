@@ -8,8 +8,8 @@ Read `SUMMARY.md` first. It says what exists, what state it is in, and what is l
 - `data/rivers.csv`: the source figures. They are approximate, written from memory.
 - `data/build.ts`: turns the CSV into the app's dataset. Hand-written map positions live in `MOUTH` and `CENTRE`.
 - `src/config.ts`: names and wording. `docs/`: the template's own notes on customising it.
-- `dashboard/`: saved copy of the claude.ai dashboard (page, data, world outlines). The live version is in the artifact store.
-- `mockup/`: saved copy of the liquid-glass design canvas.
+- `dashboard/` (local only, git-ignored): saved copy of the claude.ai dashboard (page, data, world outlines). The live version is in the artifact store.
+- `mockup/` (local only, git-ignored): saved copy of the liquid-glass design canvas.
 
 ## Run
 

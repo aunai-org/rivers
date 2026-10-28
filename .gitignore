@@ -5,3 +5,7 @@ dist
 .env
 .env.*
 .superpowers
+
+# Local only: the claude.ai dashboard and mockup copies
+dashboard/
+mockup/
