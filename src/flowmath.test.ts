@@ -36,3 +36,10 @@ test("bigger discharge flows faster and wider", () => {
   assert.ok(flowWidth(100_000, 3) > flowWidth(100, 3));
   assert.ok(flowWidth(null, 1) > flowWidth(null, 6), "rank sets the width without data");
 });
+
+test("pulses move at a calm pace, and small rivers visibly slower than big ones", () => {
+  assert.ok(flowSpeed(1_000) <= 100, `a 1,000 m³/s river runs ${flowSpeed(1_000)} km/s`);
+  assert.ok(flowSpeed(200_000) <= 300, "even the Amazon stays readable");
+  assert.ok(flowSpeed(10) * 5 <= flowSpeed(30_000), "a stream is at most a fifth the speed of a giant");
+  assert.ok(flowSpeed(null) <= flowSpeed(1_000), "rivers without data do not race");
+});

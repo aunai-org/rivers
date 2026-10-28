@@ -17,9 +17,43 @@
   --link: #8fe3a8;
   --node: #9ecbff;
   --river: #3b82f6;
+  --label-bg: rgba(0, 0, 0, 0.42);
+  --label-ink: rgba(228, 231, 234, 0.86);
+  --label-halo: #000;
+  --label-sub: #cfe6ff;
+  --label-hover: #fff;
+  --label-off: rgba(228, 231, 234, 0.45);
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 12px;
 }
+
+/* The light globe (src/theme.ts SCENE.light): pale paper map, dark ink, the same amber accent. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #e8eef5;
+  --ink: #1f262e;
+  --title: #0f3d24;
+  --muted: #5b6570;
+  --faint: #9aa3ad;
+  --line: rgba(15, 23, 32, 0.16);
+  --panel: rgba(250, 251, 252, 0.9);
+  --row: rgba(15, 23, 32, 0.05);
+  --accent: #c76a12;
+  --link: #19713a;
+  --node: #1f5fbf;
+  --river: #1f5fbf;
+  --label-bg: rgba(255, 255, 255, 0.62);
+  --label-ink: rgba(31, 38, 46, 0.88);
+  --label-halo: #fff;
+  --label-sub: #1f5fbf;
+  --label-hover: #000;
+  --label-off: rgba(31, 38, 46, 0.45);
+}
+
+/* The theme button shows where it will take you: a sun on the dark globe, a moon on the light one. */
+#theme .moon { display: none; }
+:root[data-theme="light"] #theme .sun { display: none; }
+:root[data-theme="light"] #theme .moon { display: inline; }
 
 * { box-sizing: border-box; }
 html, body, #app { margin: 0; height: 100%; background: var(--bg); color: var(--ink); overflow: hidden; }
@@ -225,21 +259,21 @@ button { cursor: pointer; }
   padding: 1px 3px;
   border: 0;
   border-radius: 3px;
-  background: rgba(0, 0, 0, 0.42);
-  color: rgba(228, 231, 234, 0.86);
+  background: var(--label-bg);
+  color: var(--label-ink);
   font-size: 9px;
   letter-spacing: 0.08em;
   line-height: 1.25;
   text-transform: uppercase;
-  text-shadow: 0 0 3px #000, 0 0 6px #000;
+  text-shadow: 0 0 3px var(--label-halo), 0 0 6px var(--label-halo);
   white-space: nowrap;
   pointer-events: auto;
   will-change: transform;
 }
-.label small { color: #cfe6ff; font-size: 8px; letter-spacing: 0.02em; text-transform: none; }
+.label small { color: var(--label-sub); font-size: 8px; letter-spacing: 0.02em; text-transform: none; }
 .label small:empty { display: none; }
-.label:hover { color: #fff; }
-.label.off { color: rgba(228, 231, 234, 0.45); }
+.label:hover { color: var(--label-hover); }
+.label.off { color: var(--label-off); }
 .label.on { color: var(--accent); font-weight: 600; font-size: 10px; }
 
 /* Detail card: terminal readout */

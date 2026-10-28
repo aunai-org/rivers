@@ -4,7 +4,7 @@ The idea: countries "inflated" by the length of their longest river. Three piece
 
 | Piece | Where | State |
 | --- | --- | --- |
-| **App** (Three.js globe) | this folder, `src/`, `data/` | Builds, `npm test` passes 25/25. Has **Inflate by river** and **River flow · live** (2026-10-27), and since 2026-10-28 no pin markers: country names on the globe, click a country or a river to filter the rivers. All on branch `feat/inflate-river-flow`. |
+| **App** (Three.js globe) | this folder, `src/`, `data/` | Builds, `npm test` passes 29/29. Has **Inflate by river** and **River flow · live** (2026-10-27), and since 2026-10-28 no pin markers: country names on the globe, click a country or a river to filter the rivers. All on branch `feat/inflate-river-flow`. |
 | **Dashboard** (claude.ai artifact) | `dashboard/` is the saved copy; live at https://claude.ai/artifact/AztfbAsjjDVuPeBHL8UqCp | Published (files/index.html at store version 7). Its automatic check never returned a result, so it has never been confirmed to render without errors. |
 | **Mockup** (liquid-glass design canvas) | `mockup/project/`; live at https://claude.ai/artifact/6GCSGRjNwHAyC8xrecfRHN | Published, 2 artboards (phone, desktop). Not viewed after publish. |
 
@@ -32,6 +32,10 @@ The user asked for: no markers; small country names at the centres; selecting a 
 - **River flow card** (right side, while rivers show): width scale for 1,000 / 10,000 / 100,000 m³/s, the model and date, the rivers in view by today's flow (click to select), how many have a value, and the Open-Meteo CC BY credit.
 - **Inflated by river card** (right side, while inflated): what the view means, and the five-band colour key. The bands are now five distinct blues from dark navy to bright.
 - On phones both cards sit folded at the bottom right, beside Filters.
+
+Later the same day the user said the flow pulses were "very fast for every river" and asked for a light-mode globe:
+- **Pulse speed** (`flowSpeed` in `src/flowmath.ts`): was 160 + 110·log10(q) km/s, so 270–650 everywhere. Now a power law, 40·(q/100)^0.35 clamped to 15–260 km/s, 50 without data: a stream ≈18, 1,000 m³/s ≈90, the giants 260. Checked live: 15 / 87 / 260 km/s (min / median / max).
+- **Light globe** (sun/moon button in the top bar): pale sea and paper-coloured land, dark-blue rivers blended as ink instead of added as light, no stars, a soft blue rim, brighter flat lighting, and light page colours (`:root[data-theme="light"]` in `src/style.css`). Inflated bands run pale to deep blue. Both palettes live in `SCENE` in `src/theme.ts`. The first visit follows the system setting; a choice is remembered under `river-globe:theme`.
 
 ### Added 2026-10-27: Inflate by river, and River flow (live)
 

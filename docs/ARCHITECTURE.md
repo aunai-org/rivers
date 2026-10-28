@@ -38,6 +38,10 @@ The marker machinery below comes from the template and is idle here (the app pas
 
 Everything is procedural, with no image files: a blurred Milky Way texture plus a separate crisp layer of band stars, two star layers, two shooting-star line segments that spawn in view, a few low-poly rocks, satellites on a ring that always faces the camera (so they circle the globe instead of crossing it), and a rim glow shader that fades to nothing at its outer edge.
 
+## Light and dark (`src/theme.ts`)
+
+`SCENE.dark` and `SCENE.light` hold the scene colours: sky, sea, land, borders, the five inflate bands, river and pulse-head colours, and the rim glow. `globe.setMode()` sets the background, hides the whole sky group in light mode, swaps the rim glow from additive to normal blending, and raises the ambient light (three.js divides light by π, so a white ambient near 2.5 shows a pale map at about its own colours). `EarthPainter.setMode()` repaints the surface at the current morph. `RiverFlow.setMode()` swaps colours and switches the ribbons from additive light (night) to alpha-blended ink (day). The page follows through `:root[data-theme="light"]` in `src/style.css`.
+
 ## Inflate by river (`data/geo/`, `src/inflate.ts`)
 
 - **Build time.** `data/geo/assets.ts` runs the cartogram (`data/geo/cartogram.ts`, which is the dashboard's Equal Earth + Dougenik algorithm, 14 iterations) over world-atlas 110m countries. It weights countries by `data/rivers.csv` and squeezes the rest to 35%. Country centres and every river vertex are moved by the same displacement field. The output is `/inflate.json`, with real and inflated rings that have the same vertex count, plus the inflated centre positions.
@@ -53,7 +57,7 @@ Everything is procedural, with no image files: a blurred Milky Way texture plus 
   3. An end touching the middle of another river.
   4. The length-weighted digitising direction.
   5. The nearer coast.
-- **Drawing.** One merged ribbon mesh draws the rivers; a per-vertex `lit` attribute hides rivers outside the selection, and a new selection replays the reveal. The vertex shader mixes the real and inflated positions and widens the ribbon sideways. The fragment shader reveals rivers from the source at 2,600 km/s and runs comet-shaped pulses toward the mouth. Hover uses a screen-space probe over the river vertices.
+- **Drawing.** One merged ribbon mesh draws the rivers; a per-vertex `lit` attribute hides rivers outside the selection, and a new selection replays the reveal. The vertex shader mixes the real and inflated positions and widens the ribbon sideways. The fragment shader reveals rivers from the source at 2,600 km/s and runs comet-shaped pulses toward the mouth, at 15–260 km/s by discharge (`flowSpeed`). Hover uses a screen-space probe over the river vertices.
 - **Discharge.** Values come from the Open-Meteo Flood API (GloFAS v4, daily, about 5 km grid, CC BY 4.0).
   - The free tier allows about 600 locations a minute. Rank ≤ 4 rivers are sampled at 2 points near the mouth, the rest at 1, which comes to about 470.
   - After 65 s a second pass retries refused batches. It also re-samples rivers that came back dry, at ±0.05° and ±0.1°, because Natural Earth lines can sit a model cell off the GloFAS channel.

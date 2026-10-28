@@ -100,9 +100,13 @@ export function ribbon(rivers: RibbonRiver[], radius: number): Ribbon {
   return out;
 }
 
-/** How fast pulses run downstream, km per second of animation, from discharge in m³/s. */
+/**
+ * How fast pulses run downstream, km per second of animation, from discharge in m³/s. A power law, not a log, so a
+ * stream (≈18 km/s) and a giant (capped at 260) look clearly different; 1,000 m³/s runs ≈90.
+ */
 export function flowSpeed(q: number | null): number {
-  return q === null ? 320 : 160 + 110 * Math.log10(Math.max(q, 1));
+  if (q === null) return 50;
+  return Math.min(260, Math.max(15, 40 * (Math.max(q, 1) / 100) ** 0.35));
 }
 
 /** Ribbon width in world units: bigger rivers by rank, then by today's discharge when it is known. */

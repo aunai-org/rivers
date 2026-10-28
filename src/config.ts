@@ -114,6 +114,8 @@ export const config = {
     demoTitle: "This is made-up sample data, not real",
     stamp: (time: string) => `Data from ${time}`,
     refreshTitle: "Check for newer data",
+    lightMode: "Light globe",
+    darkMode: "Dark globe",
     upToDate: "Up to date",
     offline: (time: string) => `Offline · showing saved data${time ? ` from ${time}` : ""}.`,
     failed: "Data request failed.",

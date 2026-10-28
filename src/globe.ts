@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { Space, rimGlow, type SpaceOptions } from "./space";
+import { Space, rimGlow, setGlow, type SpaceOptions } from "./space";
 import { badgeTexture, iconTexture, kindStyles, type Kind, type KindStyle, type KindStyles, type Tone } from "./icons";
-import { THEME, hex } from "./theme";
+import { SCENE, THEME, hex, type Mode } from "./theme";
 import { EarthPainter } from "./inflate";
 import type { InflateAsset } from "./data";
 
@@ -187,6 +187,10 @@ export class Globe {
   private tip: HTMLElement;
   private hover: [number, number] | null = null;
   private painter: EarthPainter | null = null;
+  private glow: THREE.Mesh | null = null;
+  private ambient = new THREE.AmbientLight(0xc8c8cc, 1.05);
+  private sun: THREE.DirectionalLight | null = null;
+  private space: Space | null = null;
   /** The land morph: 0 real, 1 inflated by river. */
   private morph = { t: 0, from: 0, to: 0, start: 0, ms: 0 };
   private still = false;
@@ -234,17 +238,20 @@ export class Globe {
       new THREE.MeshPhongMaterial({ map: this.painter.texture, specular: 0x111111, shininess: 4 }),
     );
     this.scene.add(globe);
-    this.scene.add(new THREE.AmbientLight(0xc8c8cc, 1.05));
+    this.scene.add(this.ambient);
     const sun = new THREE.DirectionalLight(0xf2f2f4, 1.15);
+    this.sun = sun;
     sun.position.set(-3, 1.6, 4.2);
     this.scene.add(sun);
     const fill = new THREE.DirectionalLight(0x3a3d44, 0.4);
     fill.position.set(3.4, -1.2, -2.8);
     this.scene.add(fill);
-    this.scene.add(rimGlow(RADIUS));
+    this.glow = rimGlow(RADIUS);
+    this.scene.add(this.glow);
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     this.still = still;
     const space = new Space(this.scene, this.camera, RADIUS, still, options.space);
+    this.space = space;
     this.scene.add(this.arcs, this.ripples, this.markers, this.badges);
     const canvas = this.renderer.domElement;
     canvas.addEventListener("pointerdown", (event) => {
@@ -333,6 +340,20 @@ export class Globe {
 
   get cameraDistance(): number {
     return this.camera.position.length();
+  }
+
+  /** Night globe among the stars, or a pale day globe on a plain sky. */
+  setMode(mode: Mode) {
+    const p = SCENE[mode];
+    this.scene.background = new THREE.Color(hex(p.sky));
+    this.space?.setVisible(mode === "dark");
+    // A pale map under night lighting turns grey; by day the globe is lit almost flat, with a gentle sun.
+    // (three.js divides light by π, so a white ambient near 2.5 shows the map at about its own colours.)
+    this.ambient.color.set(mode === "light" ? 0xffffff : 0xc8c8cc);
+    this.ambient.intensity = mode === "light" ? 2.5 : 1.05;
+    if (this.sun) this.sun.intensity = mode === "light" ? 0.6 : 1.15;
+    if (this.glow) setGlow(this.glow, p.glow, p.glowStrength, mode === "light");
+    this.painter?.setMode(mode, this.morph.t);
   }
 
   /** Hand the painter the inflated outlines. Until then the globe shows the plain map and cannot inflate. */

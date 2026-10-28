@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { RiversAsset } from "./data";
 import type { Flow } from "./discharge";
 import { flowSpeed, flowWidth, ribbon } from "./flowmath";
-import { THEME, hex } from "./theme";
+import { SCENE, hex, type Mode } from "./theme";
 
 /** Rivers draw out from their sources at this many km per second when the layer is turned on. */
 const REVEAL_KM_S = 2600;
@@ -48,6 +48,7 @@ const FRAGMENT = /* glsl */ `
   uniform float uSpacing;
   uniform vec3 uBase;
   uniform vec3 uHead;
+  uniform float uLight;
   varying float vDist;
   varying float vSide;
   varying float vSpeed;
@@ -62,10 +63,13 @@ const FRAGMENT = /* glsl */ `
     // The leading edge of the reveal glows as it draws out.
     float front = 1.0 - smoothstep(0.0, 260.0, uReveal - vDist);
     float glow = 0.5 + pulse * 1.1 + front * 0.8;
-    // Over the blue inflated map the rivers lighten, so they still stand out.
+    // Over the blue inflated map the rivers move toward the head colour (lighter at night, deeper by day).
     vec3 base = mix(uBase, uHead, clamp(uT, 0.0, 1.0) * 0.6);
     vec3 colour = mix(base, uHead, clamp(pulse + front, 0.0, 1.0));
-    gl_FragColor = vec4(colour * glow * edge, 1.0);
+    // Night adds light to a dark globe; day paints ink on a pale one, so it blends by alpha instead.
+    vec4 night = vec4(colour * glow * edge, 1.0);
+    vec4 day = vec4(colour, edge * clamp(0.6 + pulse * 0.4 + front * 0.4, 0.0, 1.0));
+    gl_FragColor = mix(night, day, uLight);
   }
 `;
 
@@ -98,8 +102,9 @@ export class RiverFlow {
         uReveal: { value: 0 },
         uPulse: { value: still ? 0 : 1 },
         uSpacing: { value: SPACING_KM },
-        uBase: { value: new THREE.Color(hex(THEME.river)) },
-        uHead: { value: new THREE.Color(hex(THEME.flow)).lerp(new THREE.Color(0xffffff), 0.35) },
+        uBase: { value: new THREE.Color(hex(SCENE.dark.river)) },
+        uHead: { value: new THREE.Color(hex(SCENE.dark.head)) },
+        uLight: { value: 0 },
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -114,6 +119,15 @@ export class RiverFlow {
 
   get visible() {
     return this.shown;
+  }
+
+  setMode(mode: Mode) {
+    const m = this.mesh.material;
+    m.uniforms.uBase.value.set(hex(SCENE[mode].river));
+    m.uniforms.uHead.value.set(hex(SCENE[mode].head));
+    m.uniforms.uLight.value = mode === "light" ? 1 : 0;
+    m.blending = mode === "light" ? THREE.NormalBlending : THREE.AdditiveBlending;
+    m.needsUpdate = true;
   }
 
   setData(asset: RiversAsset) {

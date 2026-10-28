@@ -9,6 +9,7 @@ import { CountryLabels } from "./labels";
 import { LOGO_SVG } from "./logo";
 import { riversShown } from "./select";
 import { cueClear, cueOpen, cueSelect, cueTick, initSound, setSound, soundOn } from "./sound";
+import { initialMode, type Mode } from "./theme";
 
 const K = config.kinds;
 /** Windows shorter than this fold the side panels when a card opens. */
@@ -79,7 +80,7 @@ function paintChrome() {
   BAND_LABELS.forEach((label, i) => {
     const row = document.createElement("span");
     const swatch = document.createElement("i");
-    swatch.style.background = bandColour(i ? BANDS[i - 1] : 0);
+    swatch.dataset.km = String(i ? BANDS[i - 1] : 0);
     row.append(swatch, label);
     bands.append(row);
   });
@@ -647,6 +648,43 @@ soundEl.addEventListener("click", () => {
   paintSound();
 });
 paintSound();
+
+// ---- Light or dark ---------------------------------------------------------------------------------------------------
+
+const MODE_KEY = "river-globe:theme";
+const themeEl = $<HTMLButtonElement>("#theme");
+let mode: Mode = initialMode(stored(), window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+function stored(): string | null {
+  try {
+    return localStorage.getItem(MODE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function applyMode() {
+  document.documentElement.dataset.theme = mode;
+  globe.setMode(mode);
+  riverFlow.setMode(mode);
+  document.querySelectorAll<HTMLElement>("#bands i").forEach((swatch) => {
+    swatch.style.background = bandColour(Number(swatch.dataset.km), mode);
+  });
+  const next = mode === "dark" ? config.copy.lightMode : config.copy.darkMode;
+  themeEl.setAttribute("aria-label", next);
+  themeEl.title = next;
+  themeEl.setAttribute("aria-pressed", String(mode === "light"));
+}
+themeEl.addEventListener("click", () => {
+  mode = mode === "dark" ? "light" : "dark";
+  try {
+    localStorage.setItem(MODE_KEY, mode);
+  } catch {
+    // Private windows can refuse storage; the switch still works for this visit.
+  }
+  applyMode();
+});
+applyMode();
 
 // ---- Views --------------------------------------------------------------------------------------------------------
 

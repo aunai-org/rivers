@@ -10,6 +10,7 @@ Two views sit at the top of the Filters panel:
 
 - **Inflate by river**: the land morphs into an area cartogram, where each country's area follows its longest river. Labels and rivers move with it, and a card explains the view and its colour key.
 - **River flow · live**: 331 Natural Earth rivers draw out from source to mouth, and pulses run downstream. Width and pace follow today's modelled discharge from the Open-Meteo Flood API (GloFAS). A legend card shows the width scale and the rivers in view by today's flow. This is the only time the page contacts another site.
+- **Light or dark globe**: the sun/moon button switches between a night globe among the stars and a pale paper map with dark-blue rivers. The first visit follows the system setting.
 
 ## Run it
 

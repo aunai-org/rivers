@@ -172,14 +172,18 @@ export class Space {
   private limb = new THREE.Vector3();
   private spin = new THREE.Vector3();
   private view = new THREE.Vector3();
+  /** Everything in the backdrop, so the light globe can hide it in one go. */
+  private group = new THREE.Group();
 
   constructor(
-    private scene: THREE.Scene,
+    root: THREE.Scene,
     private camera: THREE.Camera,
     private globeRadius: number,
     private still: boolean,
     options: SpaceOptions = {},
   ) {
+    root.add(this.group);
+    const scene = this.group;
     const o = { ...DEFAULT_SPACE, ...options };
     if (o.milkyWay) {
       const sky = new THREE.Mesh(
@@ -227,7 +231,13 @@ export class Space {
     }
   }
 
+  /** Stars and the rest only make sense on a night sky. */
+  setVisible(on: boolean) {
+    this.group.visible = on;
+  }
+
   update(dt: number) {
+    if (!this.group.visible) return;
     this.satellites(dt);
     if (this.still) return;
     this.shootingStars(dt);
@@ -351,6 +361,7 @@ export function rimGlow(radius: number): THREE.Mesh {
       color: { value: new THREE.Color(0xeef0f4) },
       strength: { value: 0.4 },
       inner: { value: inner },
+      light: { value: 0 },
     },
     vertexShader: `
       varying vec3 vNormal;
@@ -362,12 +373,14 @@ export function rimGlow(radius: number): THREE.Mesh {
       uniform vec3 color;
       uniform float strength;
       uniform float inner;
+      uniform float light;
       varying vec3 vNormal;
       void main() {
         // 0 at the glow's outer edge, 1 at the Earth's edge; eased so the fade has no visible step.
         float t = clamp(-vNormal.z / inner, 0.0, 1.0);
         float glow = pow(t, 2.4) * strength;
-        gl_FragColor = vec4(color * glow, glow);
+        // Added to a black sky at night; tinted over a pale sky by day.
+        gl_FragColor = vec4(mix(color * glow, color, light), glow);
       }`,
     side: THREE.BackSide,
     blending: THREE.AdditiveBlending,
@@ -375,4 +388,14 @@ export function rimGlow(radius: number): THREE.Mesh {
     depthWrite: false,
   });
   return new THREE.Mesh(new THREE.SphereGeometry(radius * GLOW_SCALE, 48, 32), material);
+}
+
+/** Recolour a rimGlow() mesh for the night or day look. */
+export function setGlow(mesh: THREE.Mesh, color: string, strength: number, light: boolean) {
+  const m = mesh.material as THREE.ShaderMaterial;
+  m.uniforms.color.value.set(parseInt(color.slice(1), 16));
+  m.uniforms.strength.value = strength;
+  m.uniforms.light.value = light ? 1 : 0;
+  m.blending = light ? THREE.NormalBlending : THREE.AdditiveBlending;
+  m.needsUpdate = true;
 }

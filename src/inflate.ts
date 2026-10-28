@@ -5,7 +5,7 @@ import type { FeatureCollection, Geometry } from "geojson";
 import world from "world-atlas/countries-110m.json";
 import type { Topology } from "topojson-specification";
 import type { InflateAsset } from "./data";
-import { THEME } from "./theme";
+import { SCENE, type Mode, type ScenePalette } from "./theme";
 
 const W = 2048;
 const H = 1024;
@@ -13,17 +13,16 @@ const H = 1024;
 /** River-length bands for the inflated colours, km. Same bands as the dashboard. */
 export const BANDS = [1000, 2000, 3500, 5000];
 export const BAND_LABELS = ["< 1,000 km", "1,000–2,000", "2,000–3,500", "3,500–5,000", "5,000 km +"];
-/** One colour per band, dark navy for short rivers up to bright blue for the longest, so each band reads apart. */
-const BAND_HEX = ["#22344d", "#1f4f8f", "#2667c9", "#3b82f6", "#7db8ff"];
 
 const rgb = (css: string) => [1, 3, 5].map((i) => parseInt(css.slice(i, i + 2), 16));
 const mix = (a: number[], b: number[], k: number) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
 const css = (c: number[]) => `rgb(${c[0]},${c[1]},${c[2]})`;
 
 export const bandOf = (km: number) => BANDS.filter((b) => km >= b).length;
-const bandRgb = (km: number) => rgb(BAND_HEX[bandOf(km)]);
+/** One colour per band, so each band reads apart: dark navy to bright blue at night, pale to deep blue by day. */
+const bandRgb = (km: number, p: ScenePalette) => rgb(p.bands[bandOf(km)]);
 /** The colour a table country takes when fully inflated. */
-export const bandColour = (km: number): string => css(bandRgb(km));
+export const bandColour = (km: number, mode: Mode): string => css(bandRgb(km, SCENE[mode]));
 
 /** One ring ready to draw: longitudes unwrapped so they never jump ±360, and the shifts that bring spill-over back. */
 type Ring = { a: number[][]; b: number[][]; shifts: number[] };
@@ -66,6 +65,7 @@ export class EarthPainter {
   private ctx: CanvasRenderingContext2D;
   private shapes: { km: number | null; rings: Ring[] }[] | null = null;
   private last = NaN;
+  private palette: ScenePalette = SCENE.dark;
 
   constructor(renderer: THREE.WebGLRenderer) {
     this.canvas.width = W;
@@ -77,6 +77,15 @@ export class EarthPainter {
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.colorSpace = THREE.SRGBColorSpace;
     this.texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
+  }
+
+  /** Repaint the surface in the other look, at the morph's current point. */
+  setMode(mode: Mode, t: number) {
+    this.palette = SCENE[mode];
+    this.last = NaN;
+    if (this.shapes) this.paint(t);
+    else this.plain();
+    this.texture.needsUpdate = true;
   }
 
   get ready() {
@@ -93,12 +102,12 @@ export class EarthPainter {
     if (!this.shapes || t === this.last) return;
     this.last = t;
     const ctx = this.ctx;
-    ctx.fillStyle = THEME.earth.sea;
+    ctx.fillStyle = this.palette.sea;
     ctx.fillRect(0, 0, W, H);
-    const land = THEME.earth.land;
+    const land = this.palette.land;
     const k = Math.max(0, Math.min(1, t));
     ctx.lineWidth = 1.1;
-    ctx.strokeStyle = THEME.earth.border;
+    ctx.strokeStyle = this.palette.border;
     ctx.lineJoin = "round";
     this.shapes.forEach((c, i) => {
       ctx.beginPath();
@@ -116,7 +125,7 @@ export class EarthPainter {
         }
       }
       const base = land[i % land.length];
-      ctx.fillStyle = c.km === null || !k ? base : css(mix(rgb(base), bandRgb(c.km), k));
+      ctx.fillStyle = c.km === null || !k ? base : css(mix(rgb(base), bandRgb(c.km, this.palette), k));
       ctx.fill("evenodd");
       ctx.stroke();
     });
@@ -126,19 +135,19 @@ export class EarthPainter {
   /** The original look: d3 handles the antimeridian and the poles on the sphere. */
   private plain() {
     const ctx = this.ctx;
-    ctx.fillStyle = THEME.earth.sea;
+    ctx.fillStyle = this.palette.sea;
     ctx.fillRect(0, 0, W, H);
     const topology = world as unknown as Topology;
     const countries = feature(topology, topology.objects.countries) as FeatureCollection<Geometry>;
     const projection = geoEquirectangular().scale(W / (2 * Math.PI)).translate([W / 2, H / 2]);
     const path = geoPath(projection, ctx);
-    const land = THEME.earth.land;
+    const land = this.palette.land;
     countries.features.forEach((country, i) => {
       ctx.beginPath();
       path(country);
       ctx.fillStyle = land[i % land.length];
       ctx.fill();
-      ctx.strokeStyle = THEME.earth.border;
+      ctx.strokeStyle = this.palette.border;
       ctx.lineWidth = 1.1;
       ctx.stroke();
     });
