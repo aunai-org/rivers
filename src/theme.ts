@@ -50,7 +50,8 @@ export const SCENE: Record<Mode, ScenePalette> = {
     glowStrength: 0.4,
   },
   light: {
-    sky: "#e8eef5",
+    // A muted slate, a step darker than the sea, so the pale globe stands out instead of the sky glaring.
+    sky: "#b4c1cf",
     sea: "#c9d8e6",
     land: ["#f4f1ea", "#ece8df", "#f7f5f0", "#e6e2d8", "#efebe3"],
     border: "#9aa1aa",

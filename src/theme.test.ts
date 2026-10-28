@@ -33,3 +33,10 @@ test("light mode is light: pale sea and land, darker rivers", () => {
   assert.ok(L.land.every((c) => luma(c) > luma(L.sea)), "land is paler than the sea");
   assert.ok(luma(L.river) < luma(L.sea) - 60, "rivers stand out against the sea");
 });
+
+test("the light sky is a muted backdrop, darker than the globe it frames", () => {
+  const L = SCENE.light;
+  assert.ok(luma(L.sky) < luma(L.sea) - 15, "the globe stands out against the sky");
+  assert.ok(luma(L.sky) < 200, "the sky is not glaring");
+  assert.ok(luma(L.sky) > 120, "it is still a light mode");
+});
