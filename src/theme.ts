@@ -43,7 +43,7 @@ export const SCENE: Record<Mode, ScenePalette> = {
     sea: "#07080b",
     land: ["#1c1e22", "#26282d", "#141618", "#2e3136", "#101214"],
     border: "#8b8e95",
-    bands: ["#22344d", "#1f4f8f", "#2667c9", "#3b82f6", "#7db8ff"],
+    bands: ["#3b2a5c", "#2e5c8a", "#1f8a7a", "#7ab648", "#f2c94c"],
     river: "#3b82f6",
     head: "#c0ddff",
     glow: "#eef0f4",
@@ -55,7 +55,7 @@ export const SCENE: Record<Mode, ScenePalette> = {
     sea: "#c9d8e6",
     land: ["#f4f1ea", "#ece8df", "#f7f5f0", "#e6e2d8", "#efebe3"],
     border: "#9aa1aa",
-    bands: ["#e3edf9", "#bcd4f3", "#8fb6ec", "#5f95e2", "#3b78d6"],
+    bands: ["#f6e27a", "#a8d672", "#5cc2a8", "#5b8fd6", "#8a5cc2"],
     river: "#1f5fbf",
     // Pastel red: a navy head vanished into the blue river on a pale map.
     head: "#f07a7a",

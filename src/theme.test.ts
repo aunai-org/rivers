@@ -46,3 +46,19 @@ test("the light sky is a muted backdrop, darker than the globe it frames", () =>
   assert.ok(luma(L.sky) < 200, "the sky is not glaring");
   assert.ok(luma(L.sky) > 120, "it is still a light mode");
 });
+
+const hue = (css: string) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(css.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const d = max - Math.min(r, g, b);
+  if (!d) return 0;
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+};
+
+test("river bands are several colours, not shades of one", () => {
+  for (const mode of ["dark", "light"] as const) {
+    const hues = SCENE[mode].bands.map(hue);
+    assert.ok(Math.max(...hues) - Math.min(...hues) > 150, `${mode} hues ${hues.map(Math.round)}`);
+  }
+});
