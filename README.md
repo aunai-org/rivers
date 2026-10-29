@@ -40,6 +40,6 @@ npx wrangler login      # once
 npm run deploy          # build, then wrangler deploy
 ```
 
-`public/_headers` travels with the build and sets the Content Security Policy. It allows connections to the site itself and to `https://flood-api.open-meteo.com` only. River flow is fetched by each visitor's browser, so there is no server, API key or secret. Open-Meteo's free API is for non-commercial use and asks for attribution (CC BY 4.0), which the River flow card and the About panel carry.
+River flow goes through a small Worker (`worker/index.ts`) at `/api/flood`. It accepts only the one request the site makes, answers from Cloudflare's edge cache when it has the same points (kept 6 hours, since GloFAS publishes once a day), and otherwise asks Open-Meteo once and stores the answer for every visitor. Errors are passed on and never cached. The browser only ever talks to the site itself, so `public/_headers` sets `connect-src 'self'`, with no outside host. There is no API key today; a paid one would be added to the Worker as a secret. Open-Meteo's free API is for non-commercial use and asks for attribution (CC BY 4.0), which the River flow card and the About panel carry.
 
 The template's own notes are in `docs/`. Licensed MIT (see `LICENSE`).

@@ -58,7 +58,7 @@ Everything is procedural, with no image files: a blurred Milky Way texture plus 
   4. The length-weighted digitising direction.
   5. The nearer coast.
 - **Drawing.** One merged ribbon mesh draws the rivers; a per-vertex `lit` attribute hides rivers outside the selection, and a new selection replays the reveal. The vertex shader mixes the real and inflated positions and widens the ribbon sideways. The fragment shader reveals rivers from the source at 2,600 km/s and runs comet-shaped pulses toward the mouth, at 15–260 km/s by discharge (`flowSpeed`). Hover uses a screen-space probe over the river vertices.
-- **Discharge.** Values come from the Open-Meteo Flood API (GloFAS v4, daily, about 5 km grid, CC BY 4.0).
+- **Discharge.** The browser calls the site's own `/api/flood`; `worker/index.ts` validates it (`worker/flood.ts`), serves it from the edge cache or asks Open-Meteo once, and keeps the answer 6 hours. Values come from the Open-Meteo Flood API (GloFAS v4, daily, about 5 km grid, CC BY 4.0).
   - The free tier allows about 600 locations a minute. Rank ≤ 4 rivers are sampled at 2 points near the mouth, the rest at 1, which comes to about 470.
   - After 65 s a second pass retries refused batches. It also re-samples rivers that came back dry, at ±0.05° and ±0.1°, because Natural Earth lines can sit a model cell off the GloFAS channel.
   - Values under 1 m³/s count as no data.

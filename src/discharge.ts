@@ -6,7 +6,8 @@ import type { RiversAsset } from "./data";
  * wins, because a sample point can land on a grid cell beside the channel.
  */
 
-export const FLOOD_API = "https://flood-api.open-meteo.com/v1/flood";
+/** The site's own proxy (worker/index.ts), which asks Open-Meteo and shares the answer between visitors. */
+export const FLOOD_API = "/api/flood";
 /** Locations per request; Open-Meteo takes comma-separated lists. */
 const CHUNK = 100;
 /**
@@ -75,7 +76,7 @@ export async function fetchDischarge(
 
   const flows = new Map<string, Flow>();
   const run = async (chunk: typeof spots): Promise<boolean> => {
-    const url = new URL(FLOOD_API);
+    const url = new URL(FLOOD_API, location.origin);
     url.searchParams.set("latitude", chunk.map((s) => s.lat.toFixed(3)).join(","));
     url.searchParams.set("longitude", chunk.map((s) => s.lng.toFixed(3)).join(","));
     url.searchParams.set("daily", "river_discharge");

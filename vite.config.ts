@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from "vite";
 import { buildDataset } from "./data/build";
 import { buildAssets } from "./data/geo/assets";
+import { upstreamUrl } from "./worker/flood";
 
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
 
@@ -16,6 +17,24 @@ function dataset(): Plugin {
       server.middlewares.use("/data.json", async (_req, res) => {
         res.setHeader("content-type", "application/json; charset=utf-8");
         res.end(JSON.stringify(await buildDataset()));
+      });
+      // Stands in for the Worker (worker/index.ts) while developing: same checks, same Open-Meteo call, no cache.
+      server.middlewares.use("/api/flood", async (req, res) => {
+        const upstream = upstreamUrl(new URL(req.url ?? "", "http://localhost").searchParams);
+        res.setHeader("content-type", "application/json; charset=utf-8");
+        if (!upstream) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ error: "Not a request this site makes" }));
+          return;
+        }
+        try {
+          const answer = await fetch(upstream);
+          res.statusCode = answer.status;
+          res.end(await answer.text());
+        } catch {
+          res.statusCode = 502;
+          res.end(JSON.stringify({ error: "Open-Meteo is unreachable" }));
+        }
       });
       // The inflated map and the rivers (data/geo/assets.ts): built once, on first request.
       for (const name of ["inflate", "rivers"] as const) {

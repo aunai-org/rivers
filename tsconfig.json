@@ -7,8 +7,19 @@
     "skipLibCheck": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "lib": ["ES2022", "DOM"],
-    "types": ["vite/client", "node"]
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "types": [
+      "vite/client",
+      "node"
+    ]
   },
-  "include": ["src", "data", "vite.config.ts"]
+  "include": [
+    "src",
+    "data",
+    "worker",
+    "vite.config.ts"
+  ]
 }

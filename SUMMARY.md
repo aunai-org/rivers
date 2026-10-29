@@ -4,7 +4,7 @@ The idea: countries "inflated" by the length of their longest river. Three piece
 
 | Piece | Where | State |
 | --- | --- | --- |
-| **App** (Three.js globe) | this folder, `src/`, `data/` | Builds, `npm test` passes 36/36. Has **Inflate by river** and **River flow · live** (2026-10-27), and since 2026-10-28 no pin markers: country names on the globe, click a country or a river to filter the rivers. Merged into `main` 2026-10-28 and pushed to https://github.com/aunai-org/rivers (the app is now named "Rivers"). |
+| **App** (Three.js globe) | this folder, `src/`, `data/` | Builds, `npm test` passes 41/41. Has **Inflate by river** and **River flow · live** (2026-10-27), and since 2026-10-28 no pin markers: country names on the globe, click a country or a river to filter the rivers. Merged into `main` 2026-10-28 and pushed to https://github.com/aunai-org/rivers (the app is now named "Rivers"). |
 | **Dashboard** (claude.ai artifact) | `dashboard/` is the saved copy (local only, git-ignored); live at https://claude.ai/artifact/AztfbAsjjDVuPeBHL8UqCp | Published (files/index.html at store version 7). Its automatic check never returned a result, so it has never been confirmed to render without errors. |
 | **Mockup** (liquid-glass design canvas) | `mockup/project/` (local only, git-ignored); live at https://claude.ai/artifact/6GCSGRjNwHAyC8xrecfRHN | Published, 2 artboards (phone, desktop). Not viewed after publish. |
 
@@ -43,6 +43,15 @@ Later the same day the user said the flow pulses were "very fast for every river
 - **Inflate sound** (`cueInflate` in `src/sound.ts`): a rising swell with a sweeping whoosh over the 2.4 s morph; deflating plays it falling over 0.9 s. Only with sound on. Not listened to by Claude (no audio in the test browser); checked only that it throws no errors.
 - **Closer zoom**: `minDistance` 3.1 → 2.5, about one globe radius above the surface.
 - **Cloudflare**: `wrangler.jsonc` serves `dist/` as Workers static assets; `npm run deploy` builds and deploys. Checked with `wrangler dev`: the CSP from `public/_headers` is applied, live flow loads from Open-Meteo, no console errors. `wrangler deploy --dry-run` passes. Not deployed yet: it needs `npx wrangler login` on the user's Cloudflare account.
+
+### Changed 2026-10-29: flow proxy and edge cache
+
+The user asked for the shared proxy. River flow no longer calls Open-Meteo from the browser:
+- **`worker/index.ts`** runs first for `/api/*` only (`run_worker_first` in `wrangler.jsonc`); static files are served by Cloudflare directly. It checks the request, answers from the edge cache (`x-cache: HIT`), or asks Open-Meteo once and stores the answer 6 hours (`MISS`). Errors (429, 5xx) are passed on, never cached.
+- **`worker/flood.ts`** is the tested part: only GET, `daily=river_discharge`, `forecast_days=1`, at most 100 matching latitude/longitude pairs in range; coordinates rounded to 3 decimals so visitors share cache keys; every other parameter is dropped.
+- **CSP** is now `connect-src 'self'`: the browser never contacts another site. `src/discharge.ts` calls `/api/flood`; `npm run dev` gets the same route from a stand-in in `vite.config.ts` (no cache).
+- Checked with `wrangler dev`: first call `x-cache: MISS`, second `HIT`; bad parameter and POST refused (400, 405); the page loaded live flow through the proxy with zero outside requests and no console errors. Not yet deployed.
+- No key is used today. If Open-Meteo's commercial plan is ever needed, add the key to the Worker as a secret (`wrangler secret put`), never to the page.
 
 ### Added 2026-10-27: Inflate by river, and River flow (live)
 
